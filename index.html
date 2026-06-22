@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CMS 内容管理后台</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f6fa;color:#333}
+.header{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+.header h1{font-size:20px;font-weight:700}
+.stats-bar{display:flex;gap:16px;font-size:13px;opacity:.9}
+.stats-bar b{font-size:16px}
+.tabs{display:flex;background:#fff;border-bottom:2px solid #eee;overflow-x:auto;position:sticky;top:0;z-index:10}
+.tab{padding:14px 20px;cursor:pointer;border:none;background:none;font-size:14px;color:#666;white-space:nowrap;border-bottom:3px solid transparent;transition:all .2s}
+.tab.active{color:#667eea;border-bottom-color:#667eea;font-weight:600}
+.tab:hover{background:#f9f9ff}
+.content{max-width:1200px;margin:0 auto;padding:20px}
+.card{background:#fff;border-radius:12px;padding:20px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.card h3{font-size:16px;margin-bottom:16px;border-left:4px solid #667eea;padding-left:10px}
+.form-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.form-group{flex:1;min-width:180px}
+.form-group label{display:block;font-size:12px;color:#888;margin-bottom:4px}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px}
+.btn{padding:8px 16px;border:none;border-radius:8px;cursor:pointer;font-size:14px;transition:all .2s}
+.btn-primary{background:#667eea;color:#fff}
+.btn-primary:hover{background:#5568d3}
+.btn-success{background:#52c41a;color:#fff}
+.btn-danger{background:#ff4d4f;color:#fff}
+.btn-danger:hover{background:#ff7875}
+.btn-outline{background:#fff;border:1px solid #ddd;color:#666}
+.btn-outline:hover{border-color:#667eea;color:#667eea}
+.btn-sm{padding:4px 10px;font-size:12px}
+.tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500}
+.tag-douyin{background:#fff0f0;color:#ff4d4f}
+.tag-kuaishou{background:#fff7e6;color:#fa8c16}
+.tag-xiaohongshu{background:#fff0f6;color:#eb2f96}
+.tag-weixin{background:#f0fff0;color:#52c41a}
+.tag-weibo{background:#fffbe6;color:#faad14}
+.tag-bilibili{background:#f0f5ff;color:#597ef7}
+.tag-default{background:#f5f5f5;color:#999}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.8);color:#fff;padding:10px 24px;border-radius:8px;font-size:14px;z-index:9999;opacity:0;transition:opacity .3s}
+.toast.show{opacity:1}
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid #ddd;border-top-color:#667eea;border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.script-item{background:#f9f9ff;border:1px solid #e8e8f0;border-radius:8px;padding:12px;margin-bottom:8px;cursor:pointer;transition:all .2s}
+.script-item:hover{border-color:#667eea;box-shadow:0 2px 8px rgba(102,126,234,.15)}
+.script-item .title{font-weight:600;font-size:14px;margin-bottom:4px}
+.script-item .content{font-size:13px;color:#666;white-space:pre-wrap;max-height:60px;overflow:hidden}
+.script-item .meta{display:flex;gap:8px;margin-top:6px;font-size:11px;color:#aaa}
+.media-card{background:#fff;border:1px solid #eee;border-radius:8px;overflow:hidden}
+.media-card img,.media-card video{width:100%;height:150px;object-fit:cover}
+.media-info{padding:8px}
+.media-name{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.checkbox-group{display:flex;flex-wrap:wrap;gap:8px}
+.checkbox-item{display:flex;align-items:center;gap:4px;padding:4px 10px;border:1px solid #ddd;border-radius:6px;cursor:pointer;font-size:13px}
+.checkbox-item.checked{background:#667eea;color:#fff;border-color:#667eea}
+.upload-zone{border:2px dashed #d9d9d9;border-radius:12px;padding:40px;text-align:center;cursor:pointer;transition:all .2s}
+.upload-zone:hover{border-color:#667eea;background:#f9f9ff}
+.upload-zone .icon{font-size:48px}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;justify-content:center;align-items:center;z-index:1000}
+.modal-overlay.show{display:flex}
+.modal{background:#fff;border-radius:12px;padding:24px;max-width:600px;width:90%;max-height:80vh;overflow-y:auto}
+.share-link-box{background:#f5f5f5;border:1px solid #ddd;border-radius:8px;padding:12px;word-break:break-all;font-size:13px;margin:8px 0}
+.paired-badge{display:inline-block;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600}
+.paired-yes{background:#f6ffed;color:#52c41a;border:1px solid #b7eb8f}
+.paired-no{background:#fff7e6;color:#fa8c16;border:1px solid #ffd591}
+.config-banner{background:#fffbe6;border:1px solid #ffe58f;border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px}
+.config-banner input{padding:6px 8px;border:1px solid #ddd;border-radius:4px;font-size:12px;width:100%;margin-top:4px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>📡 CMS 内容管理后台</h1>
+  <div class="stats-bar">
+    <span>📄 话术: <b id="statScripts">0</b></span>
+    <span>🎬 媒体: <b id="statMedia">0</b></span>
+    <span>🔗 分享: <b id="statShares">0</b></span>
+    <span>📥 提取: <b id="statExtracts">0</b></span>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('generate')">🤖 AI批量生成</button>
+  <button class="tab" onclick="switchTab('scripts')">📋 话术管理</button>
+  <button class="tab" onclick="switchTab('media')">🎬 媒体上传</button>
+  <button class="tab" onclick="switchTab('share')">🔗 分享链接</button>
+  <button class="tab" onclick="switchTab('stats')">📊 数据统计</button>
+  <button class="tab" onclick="switchTab('config')">⚙️ 配置</button>
+</div>
+
+<div class="content">
+
+<!-- 配置提示 -->
+<div class="config-banner" id="configBanner">
+  ⚠️ 首次使用请先到「⚙️ 配置」标签页填写 Supabase 项目 URL 和 Anon Key
+</div>
+
+<!-- AI批量生成 -->
+<div id="tab-generate" class="tab-content">
+  <div class="card">
+    <h3>🤖 智能批量生成话术</h3>
+    <div class="form-row">
+      <div class="form-group">
+        <label>选择平台（可多选）</label>
+        <div class="checkbox-group" id="genPlatforms"></div>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>话术类型</label>
+        <select id="genType">
+          <option value="评论话术">评论话术</option>
+          <option value="视频文案">视频文案</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>主题关键词（如：补水面膜、蓝牙耳机）</label>
+        <input type="text" id="genTopic" placeholder="输入产品/主题关键词">
+      </div>
+      <div class="form-group" style="max-width:120px">
+        <label>每平台生成条数</label>
+        <input type="number" id="genCount" value="5" min="1" max="20">
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn btn-outline" onclick="generatePreview()">👁 预览生成</button>
+      <button class="btn btn-primary" onclick="generateAndSave()">💾 生成并保存</button>
+    </div>
+  </div>
+  <div class="card" id="genResult" style="display:none">
+    <h3>📋 生成结果</h3>
+    <div id="genResultList"></div>
+  </div>
+</div>
+
+<!-- 话术管理 -->
+<div id="tab-scripts" class="tab-content" style="display:none">
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+      <h3 style="margin:0;border:none;padding:0">📋 话术管理</h3>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <select id="filterPlatform" onchange="loadScripts()" style="padding:6px 10px;border:1px solid #ddd;border-radius:8px;font-size:12px">
+          <option value="">全部平台</option>
+        </select>
+        <select id="filterType" onchange="loadScripts()" style="padding:6px 10px;border:1px solid #ddd;border-radius:8px;font-size:12px">
+          <option value="">全部类型</option>
+          <option value="视频文案">视频文案</option>
+          <option value="评论话术">评论话术</option>
+        </select>
+        <input type="text" id="searchInput" oninput="loadScripts()" placeholder="搜索..." style="padding:6px 10px;border:1px solid #ddd;border-radius:8px;font-size:12px;width:140px">
+        <button class="btn btn-danger btn-sm" onclick="batchDeleteScripts()">🗑 批量删除</button>
+      </div>
+    </div>
+    <div id="scriptsList"></div>
+  </div>
+</div>
+
+<!-- 媒体上传 -->
+<div id="tab-media" class="tab-content" style="display:none">
+  <div class="card">
+    <h3>🎬 批量上传视频/图片</h3>
+    <div class="form-row">
+      <div class="form-group">
+        <label>归类平台</label>
+        <select id="mediaPlatform"></select>
+      </div>
+      <div class="form-group" style="display:flex;align-items:flex-end">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+          <input type="checkbox" id="autoPair" checked> 上传后自动随机配对文案
+        </label>
+      </div>
+    </div>
+    <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+      <div class="icon">📁</div>
+      <p>点击或拖拽文件到此区域上传</p>
+      <p style="font-size:12px;color:#aaa">支持视频和图片，单文件最大 50MB（Supabase 免费版限制）</p>
+      <input type="file" id="fileInput" multiple accept="video/*,image/*" onchange="handleFileSelect(event)" style="display:none">
+    </div>
+    <div id="uploadProgress" style="margin-top:12px"></div>
+  </div>
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h3 style="margin:0;border:none;padding:0">📂 媒体库</h3>
+      <div style="display:flex;gap:8px">
+        <select id="mediaFilterPlatform" onchange="loadMedia()" style="padding:6px 10px;border:1px solid #ddd;border-radius:8px;font-size:12px">
+          <option value="">全部平台</option>
+        </select>
+        <select id="mediaFilterType" onchange="loadMedia()" style="padding:6px 10px;border:1px solid #ddd;border-radius:8px;font-size:12px">
+          <option value="">全部类型</option>
+          <option value="video">视频</option>
+          <option value="image">图片</option>
+        </select>
+        <button class="btn btn-primary btn-sm" onclick="autoPairAll()">🔗 全部随机配对</button>
+      </div>
+    </div>
+    <div class="grid" id="mediaGrid"></div>
+  </div>
+</div>
+
+<!-- 分享链接 -->
+<div id="tab-share" class="tab-content" style="display:none">
+  <div class="card">
+    <h3>🔗 创建分享链接</h3>
+    <div class="form-row">
+      <div class="form-group">
+        <label>分享标题</label>
+        <input type="text" id="shareTitle" placeholder="如：抖音爆款文案合集">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>描述（可选）</label>
+        <input type="text" id="shareDesc" placeholder="分享说明">
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="openShareModal()">➕ 选择内容创建分享</button>
+  </div>
+  <div class="card">
+    <h3>📋 已创建的分享</h3>
+    <div id="sharesList"></div>
+  </div>
+</div>
+
+<!-- 数据统计 -->
+<div id="tab-stats" class="tab-content" style="display:none">
+  <div class="card">
+    <h3>📊 数据统计</h3>
+    <div id="statsContent"></div>
+  </div>
+</div>
+
+<!-- 配置 -->
+<div id="tab-config" class="tab-content" style="display:none">
+  <div class="card">
+    <h3>⚙️ Supabase 配置</h3>
+    <p style="font-size:13px;color:#888;margin-bottom:16px">在 <a href="https://supabase.com" target="_blank">supabase.com</a> 创建项目后，将以下信息填入并保存。配置保存在浏览器 localStorage 中。</p>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Project URL</label>
+        <input type="text" id="supabaseUrl" placeholder="https://xxxxx.supabase.co">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Anon Key</label>
+        <input type="text" id="supabaseKey" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6...">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>GitHub Pages 地址（部署后填写，用于生成分享链接）</label>
+        <input type="text" id="siteUrl" placeholder="https://你的用户名.github.io/仓库名">
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="saveConfig()">💾 保存配置</button>
+    <button class="btn btn-success" onclick="testConnection()" style="margin-left:8px">🔌 测试连接</button>
+    <div id="configStatus" style="margin-top:12px"></div>
+  </div>
+  <div class="card">
+    <h3>📖 使用指南</h3>
+    <div style="font-size:13px;line-height:1.8;color:#666">
+      <p><b>1.</b> 注册 <a href="https://supabase.com" target="_blank">Supabase</a> 免费账号，创建新项目</p>
+      <p><b>2.</b> 在 Supabase SQL Editor 执行 <code>supabase-schema.sql</code> 建表</p>
+      <p><b>3.</b> 在 Supabase Storage 创建名为 <code>media</code> 的 Public Bucket</p>
+      <p><b>4.</b> 在 Supabase Dashboard → Settings → API 获取 URL 和 Anon Key</p>
+      <p><b>5.</b> 在此页面填写配置并保存</p>
+      <p><b>6.</b> 将 dist 目录推送到 GitHub 仓库，开启 GitHub Pages</p>
+      <p><b>7.</b> 部署后将 GitHub Pages 地址填入配置中的「Site URL」</p>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<!-- 分享创建弹窗 -->
+<div class="modal-overlay" id="shareModal">
+  <div class="modal">
+    <h3 style="margin-bottom:16px">选择分享内容</h3>
+    <div style="margin-bottom:12px">
+      <b style="font-size:13px">话术：</b>
+      <div id="shareScriptList" style="max-height:200px;overflow-y:auto;margin-top:8px"></div>
+    </div>
+    <div style="margin-bottom:12px">
+      <b style="font-size:13px">媒体：</b>
+      <div id="shareMediaList" style="max-height:200px;overflow-y:auto;margin-top:8px"></div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-outline" onclick="closeShareModal()">取消</button>
+      <button class="btn btn-primary" onclick="createShare()">创建分享</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ================================================================
+//  Supabase 配置
+// ================================================================
+let supabaseClient = null;
+const PLATFORMS = ['抖音','快手','小红书','微信','微博','B站'];
+
+const DEFAULT_SUPABASE_URL = 'https://mwitsgzwltsznfttgeyi.supabase.co';
+const DEFAULT_SUPABASE_KEY = 'sb_publishable_16bSgqs3xqmN7FKlyKdmDw_eZzqmiF4';
+
+function loadConfig() {
+  const url = localStorage.getItem('supabase_url') || DEFAULT_SUPABASE_URL;
+  const key = localStorage.getItem('supabase_key') || DEFAULT_SUPABASE_KEY;
+  const siteUrl = localStorage.getItem('site_url') || '';
+  if (document.getElementById('supabaseUrl')) document.getElementById('supabaseUrl').value = url;
+  if (document.getElementById('supabaseKey')) document.getElementById('supabaseKey').value = key;
+  if (document.getElementById('siteUrl')) document.getElementById('siteUrl').value = siteUrl;
+  if (url && key) {
+    supabaseClient = supabase.createClient(url, key);
+    document.getElementById('configBanner').style.display = 'none';
+    return true;
+  }
+  return false;
+}
+
+function saveConfig() {
+  const url = document.getElementById('supabaseUrl').value.trim();
+  const key = document.getElementById('supabaseKey').value.trim();
+  const siteUrl = document.getElementById('siteUrl').value.trim();
+  if (!url || !key) { showToast('请填写完整', 'error'); return; }
+  localStorage.setItem('supabase_url', url);
+  localStorage.setItem('supabase_key', key);
+  if (siteUrl) localStorage.setItem('site_url', siteUrl);
+  supabaseClient = supabase.createClient(url, key);
+  document.getElementById('configBanner').style.display = 'none';
+  document.getElementById('configStatus').innerHTML = '<span style="color:#52c41a">✅ 配置已保存</span>';
+  showToast('配置已保存');
+  loadStats();
+}
+
+async function testConnection() {
+  if (!supabaseClient) { showToast('请先保存配置', 'error'); return; }
+  try {
+    const { data, error } = await supabaseClient.from('scripts').select('id').limit(1);
+    if (error) throw error;
+    document.getElementById('configStatus').innerHTML = '<span style="color:#52c41a">✅ 连接成功！数据库正常</span>';
+    showToast('连接成功');
+  } catch(e) {
+    document.getElementById('configStatus').innerHTML = '<span style="color:#ff4d4f">❌ 连接失败: ' + e.message + '</span>';
+    showToast('连接失败', 'error');
+  }
+}
+
+// ================================================================
+//  智能生成模板库（从 server.js 搬移）
+// ================================================================
+const GEN_TEMPLATES = {
+  comment: {
+    '抖音': [
+      '这{topic}也太绝了吧！果断入手了，质量超预期🔥',
+      '刷到好几次终于下单，{topic}真的香，姐妹们冲',
+      '用了三天来反馈，{topic}确实好用，已回购第二次了',
+      '第一次买{topic}没想到这么好用，良心推荐',
+      '谁懂啊！{topic}直接封神，用了就回不去了',
+      '评价区都在推{topic}，跟风买了果然没踩雷',
+      '{topic}到手实测，和描述完全一致，五星好评',
+      '物流很快，{topic}包装精致，用了一周来追评，依然好评',
+      '被朋友安利的{topic}，真心好用，已经推荐给身边人了',
+      '这个{topic}性价比也太高了！同价位没有对手',
+      '回购第三单了，{topic}品质一直在线，放心冲',
+      '{topic}真的解决了我的大问题，太实用了',
+      '在别家买过同款{topic}，还是这家的质量最好',
+      '开箱即惊艳！{topic}做工细节到位，物超所值',
+      '用了一个月来评价，{topic}依然像新的一样，耐用！',
+      '这个{topic}我直接囤了三个，太好用了没办法',
+      '一用就停不下来，{topic}真的是年度最佳',
+      '本来还犹豫要不要买{topic}，用了之后后悔没早买',
+      '{topic}使用一周真实反馈：效果太明显了，推荐入手',
+      '从此以后{topic}就是我的必备好物了，无限回购'
+    ],
+    '快手': [
+      '老铁们这{topic}真不赖，用了都说好',
+      '{topic}到了，质量杠杠的，推荐给大家',
+      '实话实说这{topic}确实中用，没白花钱',
+      '买了{topic}用了一周，真心觉得值这个价',
+      '邻居看了我买的{topic}都问链接，好东西就得分享',
+      '{topic}收到货了，比图片上还好看，满意',
+      '第二次买{topic}了，品质一如既往的好',
+      '这{topic}价格实惠量又足，家用完全够了',
+      '给家里老人也买了一份{topic}，都说好用',
+      '{topic}到货很快，试了一下效果不错，好评',
+      '说实话一开始犹豫，用了{topic}之后真香了',
+      '工友推荐的{topic}，确实可以，已经回购',
+      '{topic}包装严实，东西实在，五星好评',
+      '这个{topic}是真材实料，不是那种虚有其表的',
+      '农村人讲究实在，这{topic}没让我失望',
+      '家里人用了{topic}都说买对了，钱花得值',
+      '自从用了{topic}，生活质量都提升了',
+      '{topic}用了一个月，效果依然杠杠的',
+      '朋友来家玩看到{topic}，当场就要了链接',
+      '别看{topic}不贵，效果不比几百块的差'
+    ],
+    '小红书': [
+      '姐妹们！{topic}绝绝子！无限回购的存在✨',
+      '被种草了{topic}，到手真的惊艳到了，颜值在线质感好',
+      '{topic}使用感满分！敏感肌也完全没问题🌿',
+      '终于找到满意的{topic}了！姐妹们闭眼冲，不踩雷',
+      '入手{topic}一周打卡！效果肉眼可见，太香了',
+      '纠结了好久选了这款{topic}，果然没让我失望',
+      '{topic}真心推荐！性价比超高，学生党也毫无压力',
+      '集美们{topic}真的可以！回购第二次了还送了小样',
+      '测评了三款{topic}，这款综合最满意，附对比图',
+      '{topic}开箱来啦！包装精致到想送礼，质感满分💯',
+      '用了{topic}两个月真实反馈：确实有效，不是智商税',
+      '姐妹你们问的{topic}链接来了！记得点赞收藏不迷路',
+      '{topic}保姆级使用教程！照着做效果翻倍📌',
+      '回购N次的{topic}！每次用都觉得很值，无限安利',
+      '{topic}上脸感受：轻薄不油腻，吸收快，会一直回购',
+      '用完一瓶{topic}才来发笔记，效果真的能打',
+      '{topic}我已经安利给全宿舍了，没有一个说不好用的',
+      '拖延症终于买了{topic}，后悔没早入手',
+      '这个{topic}直接进入我的年度爱用TOP3',
+      '被{topic}治好了我的选择困难症，太好用了'
+    ],
+    '微信': [
+      '{topic}收到了，质量很好，感谢推荐',
+      '用了{topic}感觉不错，分享给大家参考一下',
+      '刚收到{topic}，包装很用心，期待使用效果',
+      '朋友推荐的{topic}，用了一段时间确实好用',
+      '{topic}已收到，物流很快，东西和描述一致',
+      '回购了{topic}，品质稳定，值得信赖',
+      '感谢分享{topic}，确实解决了实际需求',
+      '{topic}用着很方便，家里人都说好',
+      '收到{topic}了，试了一下效果很满意，五星好评',
+      '这个{topic}性价比很高，已经推荐给朋友了',
+      '{topic}质量不错，会持续关注店铺的其他产品',
+      '用了半个月的{topic}来追评，效果确实好',
+      '{topic}收到，外观精美，功能实用，满意',
+      '第一次买{topic}，体验超出预期，会回购',
+      '{topic}发货快，包装好，产品质量过关，推荐',
+      '用了一个月来追评，{topic}确实物超所值',
+      '帮朋友也买了一单{topic}，反馈很好',
+      '{topic}稳定发挥，品质一如既往的让人放心',
+      '这个{topic}真是生活必备，用了都说好',
+      '终于找到靠谱的{topic}了，已收藏店铺'
+    ],
+    '微博': [
+      '{topic}真香警告！已入手，效果超出预期[赞]',
+      '终于等到{topic}了！试了一下真的很不错，安利',
+      '{topic}开箱测评来啦！详细使用感受见图👇 #好物推荐#',
+      '被安利了{topic}，到手实测确实可以，已加入回购清单',
+      '这{topic}也太好了吧！忍不住来发条微博夸一下',
+      '{topic}使用一周反馈：效果明显，推荐 #实测分享#',
+      '说实话{topic}是我今年买过最值的东西，没有之一',
+      '{topic}到手了！质感绝了，这个价格能买到真的划算',
+      '终于有满意的{topic}了！姐妹们冲就完事了 #好物安利#',
+      '{topic}质量在线！回购第二次，这次多囤了两份',
+      '收到{topic}第一时间来反馈：超出预期的好！[心]',
+      '纠结了很久选了这款{topic}，用了一周不后悔',
+      '{topic}用了一段时间来评价：确实好，不是智商税',
+      '一直在找的{topic}终于买到了！效果很满意 #购物分享#',
+      '{topic}开箱！包装精致+效果好=满分推荐[赞]',
+      '用了一个月{topic}，已经安利给三个朋友了',
+      '这个{topic}必须锁死，从此不用再换其他品牌',
+      '{topic}买给家人的，用了都说好，还让我多买几份',
+      '近期最满意的购物就是{topic}，没有之一',
+      '原来还有这么好用的{topic}，相见恨晚'
+    ],
+    'B站': [
+      'UP主推荐的{topic}确实可以，已入手来还愿了',
+      '{topic}用了两周，客观评价：值这个价，推荐入手',
+      '看了测评买的{topic}，到手体验和UP说的一致',
+      '{topic}开箱！细节做工不错，性价比高，给个好评',
+      '追更了！{topic}用了一个月，依然好用，已三连',
+      '{topic}到手实测，说实话超出了我的预期',
+      '感谢UP安利！{topic}确实好物，已关注+三连',
+      '{topic}使用体验分享：功能完善，日常使用完全够用',
+      '在评论区被种草的{topic}，到手确实不错，来还愿',
+      '{topic}开箱测评：同价位对比了三款，这款最满意',
+      'UP说的没错，{topic}确实是这个价位最优解',
+      '{topic}用了一段时间来追评：质量稳定，值得入手',
+      '客观评价{topic}：优点明显，性价比高，推荐',
+      '感谢弹幕区安利！{topic}到手很满意，三连支持UP',
+      '{topic}做工和用料都不错，这个价格能买到挺值的',
+      '{topic}使用半年了，质量依然坚挺，可以入',
+      '弹幕区没有骗我，{topic}确实好用，投币支持',
+      '用{topic}做了一期视频，反响很好，感谢安利',
+      '这个{topic}让我的效率提升不少，UP测评很客观',
+      '前后买了好几个{topic}的同类产品，这个最好用'
+    ]
+  },
+  videoCopy: {
+    '抖音': [
+      '🔥今天给大家分享一个超实用的{topic}！\n\n一句话总结：用了就回不去！\n\n亮点：\n1️⃣ 做工精致，细节满分\n2️⃣ 实用性强，日常刚需\n3️⃣ 性价比高，闭眼入\n\n看完记得点赞收藏，别刷着刷着找不到了～\n\n#好物推荐 #实测分享 #{topic}',
+      '姐妹们！{topic}真的绝了！\n\n使用前 VS 使用后，差距太明显了\n直接给你们看效果👇\n\n用了两周的真实感受：\n✅ 效果肉眼可见\n✅ 操作简单方便\n✅ 性价比超高\n\n评论区扣1获取链接～\n\n#种草 #好物安利 #{topic}',
+      '被问了800遍的{topic}终于出测评了！\n\n先说结论：值！非常值！\n\n详细测评：\n📦 开箱：包装精致，第一印象好\n💡 功能：核心功能实测有效\n⏱ 耐久：用了两周依然在线\n💰 价格：同价位没有对手\n\n关注我，持续分享好物～\n\n#开箱测评 #{topic} #好物推荐',
+      '答应你们的{topic}测评来了！\n\n这次测评我花了7天时间\n每天记录使用感受\n\n最终结论：推荐入手！\n\n三个理由：\n1. 效果明显，不是智商税\n2. 使用门槛低，小白友好\n3. 售后有保障，放心买\n\n点赞收藏不迷路～\n\n#好物实测 #{topic} #安利',
+      '⚠️买{topic}之前一定要看这个视频！\n\n帮你避坑+省钱\n\n实测对比了3款同类型产品\n这款综合评分最高\n\n优点：效果好、性价比高、操作简单\n缺点：说实话暂时没发现\n\n如果你也在犹豫买哪款\n看完这个视频就有答案了\n\n#避坑指南 #{topic} #购物攻略',
+      '开箱！等了好久的{topic}终于到了！\n\n第一感受：质感比预期好太多\n\n简单开个箱给大家看看：\n📦 包装：精美大气\n🎨 外观：颜值在线\n🔧 功能：该有的都有\n💪 质感：用料扎实\n\n后续会出详细使用体验\n记得关注别错过～\n\n#开箱 #好物分享 #{topic}',
+      '用了{topic}一个月，今天来交作业！\n\n前期怀疑→中期惊喜→后期离不开\n这就是我对{topic}的真实心路历程\n\n几个特别满意的点：\n✨ 效果持久稳定\n✨ 操作零门槛\n✨ 售后响应超快\n\n目前已经回购第三单\n好用到怕停产\n\n#好物推荐 #{topic} #真实测评',
+      '大家都在问的{topic}，今天统一回答！\n\nQ：值不值得买？\nA：值，闭眼入\n\nQ：质量怎么样？\nA：用了就知道什么叫良心做工\n\nQ：适合什么人？\nA：只要你有这个需求，就适合\n\nQ：多少钱？\nA：评论区告诉你，记得先关注\n\n#问答 #{topic} #购物推荐'
+    ],
+    '快手': [
+      '老铁们！今天给大家看看这个{topic}\n\n说实话一开始我也没想到这么好用\n用了之后直接真香了\n\n给大家展示一下效果👇\n\n质量确实没得说\n价格也实惠\n\n喜欢的老铁评论区扣1\n我给大家发链接\n\n#好物分享 #{topic}',
+      '收到好多老铁问的{topic}，今天统一回复！\n\n先给大家看看实物\n做工确实不错\n用了几天感觉值这个价\n\n家里有需要的可以入手\n不坑人，好东西才推荐\n\n记得双击点赞关注\n每天分享好物\n\n#实测 #{topic} #快手好物',
+      '这个{topic}真的太好用了！\n\n给大家实测一下\n效果你们自己看\n\n说实话这个价位能买到这质量\n真的很良心了\n\n有啥问题评论区问我\n看到都会回\n\n#好物推荐 #{topic} #实用',
+      '老铁们看这个{topic}！\n\n开箱给大家看看\n包装严实，东西实在\n\n试了一下效果\n确实和介绍的一样\n\n这个价格入手不亏\n需要的抓紧\n\n#开箱实测 #{topic} #快手购物',
+      '今天给大家安利一个{topic}\n\n自己用了一周才来推荐的\n效果确实好\n\n三个优点：\n1. 质量好，用料扎实\n2. 效果明显，不是智商税\n3. 价格实惠，性价比高\n\n双击关注不迷路\n\n#安利 #{topic} #好物',
+      '刚收到的{topic}，赶紧给老铁们开箱！\n\n第一眼：包装讲究\n第二眼：做工用心\n第三眼：物有所值\n\n从头到尾没有一处让我失望\n这样的好产品不多了\n\n关注我每天直播带好物\n\n#开箱 #{topic} #实在好物',
+      '用了一个月{topic}的真实感受\n\n不吹不黑，给大家交个底\n\n优点：效果明显、好用、性价比高\n缺点：暂时没发现\n\n老铁们可以放心入\n我帮你试过了\n\n#真实感受 #{topic} #好物',
+      '工友们都在问的{topic}\n\n入手三个月了\n东西还是和新的一样\n这说明质量真的过硬\n\n便宜不一定没好货\n关键要会挑\n这个{topic}就是我挑出来的好货\n\n#耐用 #{topic} #品质'
+    ],
+    '小红书': [
+      '✨被问爆的{topic}终于出测评了！\n\n集美们这篇笔记一定要收藏！\n\n使用两周真实感受：\n🌿 成分安全，敏感肌友好\n💡 效果明显，肉眼可见\n💰 性价比超高，学生党无压力\n\n使用tips：\n📌 建议早晚各用一次\n📌 搭配XX效果翻倍\n📌 坚持使用才有效果\n\n姐妹们闭眼冲！不踩雷！\n\n#好物推荐 #测评 #{topic} #种草笔记',
+      '姐妹们！{topic}无限回购的秘密公开了🌿\n\n先说结论：真的绝！用了就离不开！\n\n详细测评👇\n📦 包装：颜值超高，送礼也合适\n🎨 质感：高级感满满\n💡 效果：使用前后对比太明显了\n💰 价格：趁活动囤了三份\n\n保姆级使用教程已附上\n记得点赞收藏不迷路～\n\n#好物安利 #{topic} #无限回购 #种草',
+      '纠结了好久选了这款{topic}，果然没让我失望！\n\n测评对比了3款同类型产品\n这款综合最满意\n\n对比维度：\n1️⃣ 成分/用料：最安全\n2️⃣ 效果：最明显\n3️⃣ 性价比：最高\n4️⃣ 包装：最好看\n\n集美们直接冲这款就行\n不用再纠结了！\n\n#测评对比 #{topic} #好物推荐 #不踩雷',
+      '📝{topic}保姆级使用教程来了！\n\n很多姐妹问怎么用效果最好\n这篇笔记一次讲清楚\n\nStep1：清洁/准备\nStep2：取适量均匀涂抹\nStep3：轻柔按摩至吸收\nStep4：后续正常护肤\n\n⚠️注意事项：\n❌ 不要过量使用\n❅ 避开眼周敏感区域\n✅ 坚持使用效果更佳\n\n姐妹们记得收藏！\n\n#使用教程 #{topic} #护肤分享',
+      '🔥年度最爱{topic}！没有之一！\n\n用了三个月来交作业了\n\n真实使用感受：\n第一周：感觉还不错\n第二周：效果开始明显\n一个月：彻底爱上\n三个月：无限回购！\n\n如果你还在犹豫\n这篇笔记就是你的答案\n\n#年度爱用 #{topic} #回购清单 #好物',
+      '被问了N遍的{topic}使用对比来了！\n\n使用前 vs 使用后\n区别真的太大了\n\n看完你们就知道为什么\n我逢人就推荐{topic}\n\n几个月用下来\n皮肤/效果真的好了不止一个档次\n\n#对比 #{topic} #效果实测',
+      '这个{topic}我真的藏不住了！\n\n每次发笔记都有人问\n今天终于来写详细测评了\n\n一句话：让我告别了XX困扰\n\n几个月的使用告诉你\n它不是智商税\n是真的有效果\n\n#必入好物 #{topic} #真实反馈',
+      '年度回购清单TOP1：{topic}！\n\n理由很简单：\n效果好+颜值高+性价比优\n\n用了一整年了\n品质始终在线\n从来没让我失望\n\n集美们可以放心入手\n\n#年度回购 #{topic} #长期使用'
+    ],
+    '微信': [
+      '今天给大家分享一款实用的{topic}\n\n使用了一段时间，效果确实不错\n适合日常使用，操作简单\n\n主要优点：\n1. 品质可靠，用料扎实\n2. 效果明显，性价比高\n3. 售后完善，购买无忧\n\n有需要的朋友可以参考\n感谢关注，持续分享好物～\n\n#{topic}',
+      '收到很多朋友问的{topic}，统一回复一下\n\n这款产品我自己用了两周\n整体体验很好，推荐给大家\n\n简单的使用感受：\n📦 包装精美，适合自用或送礼\n💡 功能实用，满足日常需求\n💰 价格合理，性价比不错\n\n有兴趣的朋友可以了解一下\n\n#{topic} #好物分享',
+      '{topic}使用体验分享\n\n买之前做了不少功课\n最终选了这款，用了一段时间确实没选错\n\n几个亮点：\n✅ 质量过关，做工精细\n✅ 使用方便，上手快\n✅ 效果满意，值得入手\n\n个人觉得很适合家用\n分享给大家参考\n\n#{topic} #实测分享',
+      '分享一下近期入手的{topic}\n\n从选择到使用的全过程\n希望能帮到正在考虑的朋友\n\n为什么选这款？\n1. 口碑好，朋友推荐\n2. 性价比高，不踩雷\n3. 售后有保障\n\n到目前为止很满意\n后续继续观察\n\n#{topic} #好物'
+    ],
+    '微博': [
+      '🔥{topic}开箱测评来了！等了好久终于到了！\n\n先说结论：值！非常值！\n\n详细测评👇\n📦开箱：包装精致有质感\n💡功能：核心功能实测有效\n⏱耐久：用了两周依然在线\n💰价格：同价位没有对手\n\n这次测评拍了详细视频\n看完你就知道值不值了\n\n#好物测评# #{topic}# #开箱#\n\n转发扩散给需要的朋友！',
+      '答应你们的{topic}测评来了！\n\n这次花了一周时间深入体验\n每天记录使用感受\n\n最终评分：⭐⭐⭐⭐⭐\n\n优点：效果明显、操作简单、性价比高\n缺点：说实话暂时没发现明显缺点\n\n如果你也在犹豫买不买\n看完这条微博就有答案了\n\n#好物推荐# #{topic}# #实测#\n\n点赞收藏不迷路～',
+      '⚠️买{topic}之前一定要看这条微博！\n\n帮你避坑+省钱\n\n实测对比了3款同类型产品\n这款综合评分最高\n\n测评维度：\n1. 效果实测\n2. 性价比对比\n3. 用户口碑\n4. 售后保障\n\n结果：这款完胜\n\n#避坑指南# #{topic}# #购物攻略#',
+      '被问了800遍的{topic}终于出详细测评了！\n\n这次测评非常全面\n图文+视频都有\n\n一句话总结：用了就回不去！\n\n亮点：\n1️⃣ 做工精致，细节满分\n2️⃣ 实用性强，日常刚需\n3️⃣ 性价比高，闭眼入\n\n#好物安利# #{topic}# #测评分享#',
+      '这个{topic}我愿称之为年度最佳！\n\n试过十几个同类产品\n这个是唯一让我回购超过3次的\n\n为什么这么喜欢？\n因为它是真的有效果\n不是营销吹出来的\n\n没买过的建议试试\n买了的懂的都懂\n\n#年度最佳# #{topic}# #无限回购#',
+      '今天必须给{topic}发条微博！\n\n用了快半年了\n效果越来越好\n\n从路人变铁粉\n只需要一个{topic}的距离\n\n问我值不值得？\n值值值！重要的事说三遍\n\n#好物# #{topic}# #真实体验#'
+    ],
+    'B站': [
+      '【详细测评】{topic}值不值得买？一周深度体验告诉你答案\n\nUP主花了一周时间深度体验{topic}\n每天记录使用感受，客观评价\n\n测评内容：\n00:00 开箱展示\n01:30 外观做工\n03:00 核心功能实测\n06:00 日常使用体验\n08:30 优缺点总结\n10:00 购买建议\n\n结论：同价位最优解，推荐入手\n\n如果觉得有帮助请三连支持！\n关注UP主，持续更新测评内容\n\n#{topic} #测评 #好物推荐',
+      '【开箱】等了好久的{topic}终于到了！\n\n这次开箱非常详细\n从包装到实物全方位展示\n\n开箱内容：\n📦 外包装设计\n🎨 开箱体验\n🔧 配件展示\n💡 产品细节\n💪 质感手感\n\n后续会出详细使用体验视频\n记得关注+三连不迷路！\n\n弹幕告诉我你们想看哪方面的详细测评\n\n#{topic} #开箱 #数码测评',
+      '【对比测评】3款{topic}横评，哪款最值得买？\n\nUP主自费购买了3款热门{topic}\n从多个维度进行对比\n\n对比维度：\n1. 外观做工\n2. 核心功能\n3. 使用体验\n4. 性价比\n5. 售后服务\n\n最终推荐：第X款综合最优\n\n全程客观评价，不吹不黑\n觉得有用请三连支持！\n\n#{topic} #对比测评 #好物',
+      '【使用教程】{topic}保姆级教程，小白也能轻松上手！\n\n很多小伙伴买了{topic}不知道怎么用\nUP主录了详细的教程\n\n教程内容：\n1. 开箱准备\n2. 基础设置\n3. 日常使用技巧\n4. 进阶玩法\n5. 常见问题解答\n\n跟着视频一步步来\n保证你也能玩转{topic}\n\n三连关注，更多教程持续更新！\n\n#{topic} #教程 #使用指南',
+      '【半年使用报告】{topic}长期使用体验\n\n买了{topic}半年了\n今天来做长期使用报告\n\n这半年来：\n✅ 品质始终如一\n✅ 效果持续在线\n✅ 从没出过问题\n\n这才是好产品该有的样子\n经得起时间考验\n\n#长期测评 #{topic} #品质'
+    ]
+  }
+};
+
+// ================================================================
+//  生成逻辑（从 server.js 搬移）
+// ================================================================
+function generateItems(platforms, type, topic, count) {
+  const topicStr = topic || '好物';
+  const items = [];
+  const usedTemplates = new Set();
+  const poolKey = type === '视频文案' ? 'videoCopy' : 'comment';
+
+  platforms.forEach(pf => {
+    const pool = (GEN_TEMPLATES[poolKey] && GEN_TEMPLATES[poolKey][pf])
+      ? GEN_TEMPLATES[poolKey][pf]
+      : (GEN_TEMPLATES[poolKey] && GEN_TEMPLATES[poolKey]['抖音']) || [];
+
+    const indices = [...pool.keys()].sort(() => Math.random() - 0.5);
+    let picked = 0;
+    for (const idx of indices) {
+      if (picked >= count) break;
+      const key = pf + '_' + idx;
+      if (usedTemplates.has(key)) continue;
+      usedTemplates.add(key);
+      const raw = pool[idx];
+      const content = raw.replace(/\{topic\}/g, topicStr);
+      items.push({
+        platform: pf, type, 
+        title: type === '视频文案' ? `${pf}·${topicStr}视频文案${picked+1}` : `${pf}·${topicStr}评论话术${picked+1}`,
+        content, media: [], extract_count: 0, generated: true
+      });
+      picked++;
+    }
+    while (picked < count) {
+      const raw = pool[picked % pool.length];
+      const content = raw.replace(/\{topic\}/g, topicStr) + ' ' + (picked + 1);
+      items.push({
+        platform: pf, type,
+        title: type === '视频文案' ? `${pf}·${topicStr}视频文案${picked+1}` : `${pf}·${topicStr}评论话术${picked+1}`,
+        content, media: [], extract_count: 0, generated: true
+      });
+      picked++;
+    }
+  });
+  return items;
+}
+
+function getSelectedPlatforms() {
+  return Array.from(document.querySelectorAll('.gen-plat-cb:checked')).map(cb => cb.value);
+}
+
+function generatePreview() {
+  const platforms = getSelectedPlatforms();
+  if (platforms.length === 0) { showToast('请至少选择一个平台', 'error'); return; }
+  const type = document.getElementById('genType').value;
+  const topic = document.getElementById('genTopic').value.trim();
+  const count = parseInt(document.getElementById('genCount').value) || 5;
+  const items = generateItems(platforms, type, topic, count);
+  document.getElementById('genResult').style.display = 'block';
+  document.getElementById('genResultList').innerHTML = items.map((item, i) => `
+    <div class="script-item">
+      <div class="title">${platformTag(item.platform)} ${item.title}</div>
+      <div class="content">${item.content}</div>
+    </div>`).join('');
+  showToast(`生成 ${items.length} 条，确认无误后点「生成并保存」`);
+}
+
+async function generateAndSave() {
+  if (!supabaseClient) { showToast('请先配置 Supabase', 'error'); return; }
+  const platforms = getSelectedPlatforms();
+  if (platforms.length === 0) { showToast('请至少选择一个平台', 'error'); return; }
+  const type = document.getElementById('genType').value;
+  const topic = document.getElementById('genTopic').value.trim();
+  const count = parseInt(document.getElementById('genCount').value) || 5;
+  const items = generateItems(platforms, type, topic, count);
+  
+  try {
+    const { data, error } = await supabaseClient.from('scripts').insert(items).select();
+    if (error) throw error;
+    document.getElementById('genResult').style.display = 'block';
+    document.getElementById('genResultList').innerHTML = items.map((item, i) => `
+      <div class="script-item">
+        <div class="title">${platformTag(item.platform)} ${item.title}</div>
+        <div class="content">${item.content}</div>
+      </div>`).join('');
+    showToast(`✅ 已保存 ${items.length} 条到数据库`);
+    loadStats();
+  } catch(e) {
+    showToast('保存失败: ' + e.message, 'error');
+  }
+}
+
+// ================================================================
+//  话术管理
+// ================================================================
+let allScripts = [];
+
+async function loadScripts() {
+  if (!supabaseClient) return;
+  try {
+    let query = supabaseClient.from('scripts').select('*').order('created_at', { ascending: false });
+    const fp = document.getElementById('filterPlatform').value;
+    const ft = document.getElementById('filterType').value;
+    const search = document.getElementById('searchInput').value.trim();
+    if (fp) query = query.eq('platform', fp);
+    if (ft) query = query.eq('type', ft);
+    const { data, error } = await query;
+    if (error) throw error;
+    allScripts = data || [];
+    let filtered = allScripts;
+    if (search) filtered = filtered.filter(s => (s.title||'').includes(search) || (s.content||'').includes(search));
+    renderScripts(filtered);
+  } catch(e) { showToast('加载失败: ' + e.message, 'error'); }
+}
+
+function renderScripts(list) {
+  const container = document.getElementById('scriptsList');
+  if (list.length === 0) { container.innerHTML = '<p style="color:#aaa;text-align:center;padding:20px">暂无数据</p>'; return; }
+  container.innerHTML = list.map(s => `
+    <div class="script-item">
+      <div style="display:flex;justify-content:space-between;align-items:start">
+        <div style="flex:1">
+          <div class="title">${platformTag(s.platform)} ${s.type === '视频文案' ? '🎬' : '💬'} ${s.title}</div>
+          <div class="content">${(s.content||'').substring(0,200)}</div>
+          <div class="meta">
+            <span>📥 ${s.extract_count || 0}次提取</span>
+            <span>📅 ${s.created_at ? new Date(s.created_at).toLocaleDateString() : ''}</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:4px;flex-shrink:0">
+          <button class="btn btn-outline btn-sm" onclick="copyScript(${s.id})">📋 复制</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteScript(${s.id})">🗑</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+async function deleteScript(id) {
+  if (!confirm('确定删除？')) return;
+  try {
+    await supabaseClient.from('scripts').delete().eq('id', id);
+    await supabaseClient.from('extractions').delete().eq('script_id', id);
+    showToast('已删除');
+    loadScripts(); loadStats();
+  } catch(e) { showToast('删除失败', 'error'); }
+}
+
+async function batchDeleteScripts() {
+  const ids = Array.from(document.querySelectorAll('.script-cb:checked')).map(cb => parseInt(cb.value));
+  if (ids.length === 0) { showToast('请先选择要删除的条目', 'error'); return; }
+  if (!confirm(`确定删除 ${ids.length} 条？`)) return;
+  try {
+    await supabaseClient.from('scripts').delete().in('id', ids);
+    showToast(`已删除 ${ids.length} 条`);
+    loadScripts(); loadStats();
+  } catch(e) { showToast('删除失败', 'error'); }
+}
+
+function copyScript(id) {
+  const s = allScripts.find(x => x.id === id);
+  if (!s) return;
+  navigator.clipboard.writeText(s.content).then(() => showToast('已复制'));
+}
+
+// ================================================================
+//  媒体上传
+// ================================================================
+let allMedia = [];
+
+async function handleFileSelect(event) {
+  const files = Array.from(event.target.files || []);
+  if (files.length === 0) return;
+  const platform = document.getElementById('mediaPlatform').value || '通用';
+  const autoPair = document.getElementById('autoPair').checked;
+  const progress = document.getElementById('uploadProgress');
+  
+  for (let i = 0; i < files.length; i++) {
+    const f = files[i];
+    const isVideo = f.type.startsWith('video');
+    const ext = f.name.split('.').pop();
+    const fileName = `${isVideo ? 'videos' : 'images'}/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
+    progress.innerHTML = `<span class="spinner"></span> 上传中 ${i+1}/${files.length}: ${f.name}`;
+    
+    try {
+      const { data, error } = await supabaseClient.storage.from('media').upload(fileName, f);
+      if (error) throw error;
+      const { data: urlData } = supabaseClient.storage.from('media').getPublicUrl(fileName);
+      const asset = {
+        url: urlData.publicUrl, name: f.name, type: isVideo ? 'video' : 'image',
+        platform, size: f.size
+      };
+      const { data: inserted, error: insertError } = await supabaseClient.from('media_assets').insert(asset).select();
+      if (insertError) throw insertError;
+      
+      if (autoPair && inserted && inserted[0]) {
+        await pairMedia(inserted[0].id, inserted[0].type, platform);
+      }
+    } catch(e) {
+      showToast(`上传失败 ${f.name}: ${e.message}`, 'error');
+    }
+  }
+  progress.innerHTML = '';
+  event.target.value = '';
+  showToast(`✅ 上传完成 ${files.length} 个文件`);
+  loadMedia(); loadStats();
+}
+
+async function pairMedia(mediaId, mediaType, platform) {
+  const scriptType = mediaType === 'video' ? '视频文案' : '评论话术';
+  let query = supabaseClient.from('scripts').select('*').eq('type', scriptType);
+  if (platform && platform !== '通用') query = query.eq('platform', platform);
+  const { data: candidates } = await query;
+  if (!candidates || candidates.length === 0) {
+    const { data: all } = await supabaseClient.from('scripts').select('*').eq('type', scriptType);
+    if (!all || all.length === 0) return;
+    candidates.push(...all);
+  }
+  const picked = candidates[Math.floor(Math.random() * candidates.length)];
+  await supabaseClient.from('media_assets').update({
+    paired_script_id: picked.id,
+    paired_script_title: picked.title,
+    paired_script_content: picked.content,
+    paired_script_type: scriptType
+  }).eq('id', mediaId);
+}
+
+async function loadMedia() {
+  if (!supabaseClient) return;
+  try {
+    let query = supabaseClient.from('media_assets').select('*').order('created_at', { ascending: false });
+    const fp = document.getElementById('mediaFilterPlatform').value;
+    const ft = document.getElementById('mediaFilterType').value;
+    if (fp) query = query.eq('platform', fp);
+    if (ft) query = query.eq('type', ft);
+    const { data, error } = await query;
+    if (error) throw error;
+    allMedia = data || [];
+    renderMedia(allMedia);
+  } catch(e) { showToast('加载失败: ' + e.message, 'error'); }
+}
+
+function renderMedia(list) {
+  const grid = document.getElementById('mediaGrid');
+  if (list.length === 0) { grid.innerHTML = '<p style="color:#aaa;text-align:center;padding:20px;grid-column:1/-1">暂无媒体</p>'; return; }
+  grid.innerHTML = list.map(m => `
+    <div class="media-card">
+      ${m.type === 'video' 
+        ? `<video src="${m.url}" controls preload="metadata" style="width:100%;height:150px;object-fit:cover"></video>`
+        : `<img src="${m.url}" alt="${m.name}" loading="lazy" style="width:100%;height:150px;object-fit:cover">`}
+      <div class="media-info">
+        <div class="media-name" title="${m.name}">${m.type === 'video' ? '🎬 ' : '🖼 '}${m.name}</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
+          ${platformTag(m.platform)}
+          <span style="font-size:11px;color:#aaa">${(m.size/1024/1024).toFixed(1)}MB</span>
+        </div>
+        <div style="margin-top:4px">
+          ${m.paired_script_id 
+            ? `<span class="paired-badge paired-yes">✅ 已配对: ${m.paired_script_title||''}</span>` 
+            : `<span class="paired-badge paired-no">⏳ 未配对</span>`}
+        </div>
+        <div style="display:flex;gap:4px;margin-top:6px">
+          <button class="btn btn-outline btn-sm" onclick="downloadMedia('${m.url}','${m.name}')">⬇ 下载</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteMedia(${m.id})">🗑</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+async function deleteMedia(id) {
+  if (!confirm('确定删除？')) return;
+  try { await supabaseClient.from('media_assets').delete().eq('id', id); showToast('已删除'); loadMedia(); loadStats(); }
+  catch(e) { showToast('删除失败', 'error'); }
+}
+
+async function autoPairAll() {
+  if (!supabaseClient) return;
+  const unpaired = allMedia.filter(m => !m.paired_script_id);
+  if (unpaired.length === 0) { showToast('没有需要配对的媒体'); return; }
+  for (const m of unpaired) { await pairMedia(m.id, m.type, m.platform); }
+  showToast(`✅ 已配对 ${unpaired.length} 个`);
+  loadMedia();
+}
+
+function downloadMedia(url, name) {
+  const a = document.createElement('a'); a.href = url; a.download = name; a.target = '_blank'; a.click();
+}
+
+// ================================================================
+//  分享管理
+// ================================================================
+async function openShareModal() {
+  if (!supabaseClient) { showToast('请先配置 Supabase', 'error'); return; }
+  await loadScripts(); await loadMedia();
+  document.getElementById('shareScriptList').innerHTML = allScripts.map(s => `
+    <label style="display:flex;align-items:start;gap:6px;padding:6px;border-bottom:1px solid #f0f0f0;cursor:pointer;font-size:13px">
+      <input type="checkbox" class="share-script-cb" value="${s.id}">
+      <span>${platformTag(s.platform)} ${s.title}</span>
+    </label>`).join('');
+  document.getElementById('shareMediaList').innerHTML = allMedia.map(m => `
+    <label style="display:flex;align-items:center;gap:6px;padding:6px;border-bottom:1px solid #f0f0f0;cursor:pointer;font-size:13px">
+      <input type="checkbox" class="share-media-cb" value="${m.id}">
+      <span>${m.type === 'video' ? '🎬' : '🖼'} ${m.name}</span>
+    </label>`).join('');
+  document.getElementById('shareModal').classList.add('show');
+}
+
+function closeShareModal() { document.getElementById('shareModal').classList.remove('show'); }
+
+async function createShare() {
+  const title = document.getElementById('shareTitle').value.trim() || '未命名分享';
+  const description = document.getElementById('shareDesc').value.trim();
+  const scriptIds = Array.from(document.querySelectorAll('.share-script-cb:checked')).map(cb => parseInt(cb.value));
+  const mediaIds = Array.from(document.querySelectorAll('.share-media-cb:checked')).map(cb => parseInt(cb.value));
+  if (scriptIds.length === 0 && mediaIds.length === 0) { showToast('请至少选择一项', 'error'); return; }
+  
+  const selectedScripts = allScripts.filter(s => scriptIds.includes(s.id)).map(s => ({
+    id: s.id, title: s.title, platform: s.platform, type: s.type, content: s.content, media: s.media || []
+  }));
+  const selectedMedia = allMedia.filter(m => mediaIds.includes(m.id)).map(m => ({
+    id: m.id, url: m.url, name: m.name, type: m.type, platform: m.platform,
+    paired_script_content: m.paired_script_content, paired_script_title: m.paired_script_title
+  }));
+  
+  const shareId = Math.random().toString(36).slice(2, 18);
+  try {
+    const { error } = await supabaseClient.from('shares').insert({
+      share_id: shareId, title, description, scripts: selectedScripts, media_assets: selectedMedia, view_count: 0
+    });
+    if (error) throw error;
+    closeShareModal();
+    const siteUrl = localStorage.getItem('site_url') || '';
+    const fullUrl = siteUrl ? `${siteUrl}/share.html?sid=${shareId}` : `share.html?sid=${shareId}`;
+    if (confirm(`分享链接已创建：\n${fullUrl}\n\n是否复制到剪贴板？`)) navigator.clipboard.writeText(fullUrl);
+    loadShares(); loadStats();
+  } catch(e) { showToast('创建失败: ' + e.message, 'error'); }
+}
+
+async function loadShares() {
+  if (!supabaseClient) return;
+  try {
+    const { data, error } = await supabaseClient.from('shares').select('*').order('created_at', { ascending: false });
+    if (error) throw error;
+    const siteUrl = localStorage.getItem('site_url') || '';
+    const list = document.getElementById('sharesList');
+    if (!data || data.length === 0) { list.innerHTML = '<p style="color:#aaa;text-align:center;padding:20px">暂无分享</p>'; return; }
+    list.innerHTML = data.map(s => {
+      const url = siteUrl ? `${siteUrl}/share.html?sid=${s.share_id}` : `share.html?sid=${s.share_id}`;
+      return `
+      <div style="background:#f9f9ff;border:1px solid #e8e8f0;border-radius:8px;padding:12px;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <b>${s.title}</b>
+            <span style="font-size:12px;color:#888;margin-left:8px">📄 ${(s.scripts||[]).length}  🎬 ${(s.media_assets||[]).length}  👁 ${s.view_count||0}</span>
+          </div>
+          <button class="btn btn-danger btn-sm" onclick="deleteShare('${s.share_id}')">🗑</button>
+        </div>
+        <div class="share-link-box">${url}</div>
+        <button class="btn btn-outline btn-sm" onclick="navigator.clipboard.writeText('${url}');showToast('已复制')">📋 复制链接</button>
+        <a href="${url}" target="_blank" class="btn btn-outline btn-sm" style="text-decoration:none">🔗 打开</a>
+      </div>`;
+    }).join('');
+  } catch(e) { showToast('加载失败', 'error'); }
+}
+
+async function deleteShare(shareId) {
+  if (!confirm('确定删除此分享？')) return;
+  try { await supabaseClient.from('shares').delete().eq('share_id', shareId); showToast('已删除'); loadShares(); loadStats(); }
+  catch(e) { showToast('删除失败', 'error'); }
+}
+
+// ================================================================
+//  统计
+// ================================================================
+async function loadStats() {
+  if (!supabaseClient) return;
+  try {
+    const [{ data: scripts }, { data: media }, { data: shares }, { data: extractions }] = await Promise.all([
+      supabaseClient.from('scripts').select('id,title,platform,type,extract_count'),
+      supabaseClient.from('media_assets').select('id'),
+      supabaseClient.from('shares').select('id'),
+      supabaseClient.from('extractions').select('id')
+    ]);
+    document.getElementById('statScripts').textContent = scripts ? scripts.length : 0;
+    document.getElementById('statMedia').textContent = media ? media.length : 0;
+    document.getElementById('statShares').textContent = shares ? shares.length : 0;
+    document.getElementById('statExtracts').textContent = extractions ? extractions.length : 0;
+    
+    if (document.getElementById('statsContent')) {
+      const topScripts = (scripts || []).sort((a,b) => (b.extract_count||0) - (a.extract_count||0)).slice(0, 10);
+      document.getElementById('statsContent').innerHTML = `
+        <div class="form-row">
+          <div class="form-group"><label>总话术数</label><div style="font-size:28px;font-weight:700;color:#667eea">${scripts ? scripts.length : 0}</div></div>
+          <div class="form-group"><label>总媒体数</label><div style="font-size:28px;font-weight:700;color:#52c41a">${media ? media.length : 0}</div></div>
+          <div class="form-group"><label>总分享数</label><div style="font-size:28px;font-weight:700;color:#fa8c16">${shares ? shares.length : 0}</div></div>
+          <div class="form-group"><label>总提取数</label><div style="font-size:28px;font-weight:700;color:#eb2f96">${extractions ? extractions.length : 0}</div></div>
+        </div>
+        <h4 style="margin-top:20px;margin-bottom:8px">🔥 提取排行 TOP10</h4>
+        ${topScripts.map((s, i) => `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f5f5f5;font-size:13px">
+          <span>${i+1}. ${platformTag(s.platform)} ${s.title}</span>
+          <span style="color:#667eea;font-weight:600">${s.extract_count || 0} 次</span>
+        </div>`).join('')}`;
+    }
+  } catch(e) {}
+}
+
+// ================================================================
+//  工具函数
+// ================================================================
+function platformTag(pf) {
+  const map = { '抖音':'douyin','快手':'kuaishou','小红书':'xiaohongshu','微信':'weixin','微博':'weibo','B站':'bilibili' };
+  const cls = map[pf] || 'default';
+  return `<span class="tag tag-${cls}">${pf}</span>`;
+}
+
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+  event.target.classList.add('active');
+  document.getElementById('tab-' + name).style.display = 'block';
+  if (name === 'scripts') loadScripts();
+  if (name === 'media') loadMedia();
+  if (name === 'share') loadShares();
+  if (name === 'stats') loadStats();
+}
+
+// 拖拽上传
+const uploadZone = document.getElementById('uploadZone');
+if (uploadZone) {
+  uploadZone.ondragover = (e) => { e.preventDefault(); uploadZone.style.borderColor = '#667eea'; };
+  uploadZone.ondragleave = () => { uploadZone.style.borderColor = '#d9d9d9'; };
+  uploadZone.ondrop = (e) => {
+    e.preventDefault();
+    uploadZone.style.borderColor = '#d9d9d9';
+    document.getElementById('fileInput').files = e.dataTransfer.files;
+    handleFileSelect({ target: { files: e.dataTransfer.files } });
+  };
+}
+
+// ================================================================
+//  初始化
+// ================================================================
+function initPlatforms() {
+  const genDiv = document.getElementById('genPlatforms');
+  genDiv.innerHTML = PLATFORMS.map(p => `
+    <label class="checkbox-item" onclick="this.classList.toggle('checked')">
+      <input type="checkbox" class="gen-plat-cb" value="${p}" style="display:none"> ${p}
+    </label>`).join('');
+  
+  ['mediaPlatform','filterPlatform','mediaFilterPlatform'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = `<option value="">${id === 'mediaPlatform' ? '选择平台' : '全部平台'}</option>` + PLATFORMS.map(p => `<option value="${p}">${p}</option>`).join('');
+  });
+}
+
+async function init() {
+  initPlatforms();
+  const configured = loadConfig();
+  if (configured) { loadStats(); }
+}
+
+init();
+</script>
+</body>
+</html>

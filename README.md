@@ -1,0 +1,31 @@
+# CMS 话术管理系统
+
+电商分销 + 自媒体内容管理工具，支持 AI 批量生成话术、媒体上传配对、分享链接。
+
+## 部署到 GitHub Pages
+
+### 1. 注册 Supabase
+- 访问 https://supabase.com 注册免费账号
+- 创建新项目
+- 在 SQL Editor 执行 `supabase-schema.sql`
+- 在 Storage 创建名为 `media` 的 Public Bucket
+- 在 Settings → API 获取 Project URL 和 Anon Key
+
+### 2. 部署到 GitHub Pages
+- 创建 GitHub 公开仓库
+- 将 `dist/` 目录下所有文件推送到仓库
+- 在仓库 Settings → Pages 选择 main 分支 / root 目录
+- 等待 1-2 分钟即可访问
+
+### 3. 配置
+- 打开 GitHub Pages 地址访问 `index.html`
+- 进入「⚙️ 配置」标签页
+- 填入 Supabase URL、Anon Key、GitHub Pages 地址
+- 保存并测试连接
+
+## 功能
+- 🤖 AI 批量生成视频文案 + 评论话术（6 大平台）
+- 📋 话术管理（筛选、搜索、复制、删除）
+- 🎬 媒体上传（视频/图片，带平台分类，随机配对文案）
+- 🔗 分享链接（外部可直接打开复制下载）
+- 📊 数据统计

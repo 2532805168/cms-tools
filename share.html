@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>话术库分享</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f6fa;color:#333;min-height:100vh}
+.header{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:20px;text-align:center}
+.header h1{font-size:20px;font-weight:700}
+.header p{font-size:13px;opacity:.8;margin-top:4px}
+.content{max-width:800px;margin:0 auto;padding:16px}
+.filter-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.filter-btn{padding:6px 14px;border:1px solid #ddd;border-radius:20px;background:#fff;cursor:pointer;font-size:13px;transition:all .2s}
+.filter-btn.active{background:#667eea;color:#fff;border-color:#667eea}
+.search-box{width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-bottom:16px}
+.script-card{background:#fff;border-radius:12px;padding:16px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.06);cursor:pointer;transition:all .2s;border:2px solid transparent}
+.script-card:hover{border-color:#667eea;box-shadow:0 4px 12px rgba(102,126,234,.15)}
+.script-card.copied{border-color:#52c41a;background:#f6ffed}
+.script-card .title{font-weight:600;font-size:15px;margin-bottom:8px}
+.script-card .content{font-size:14px;color:#555;white-space:pre-wrap;line-height:1.6}
+.script-card .meta{display:flex;gap:8px;margin-top:10px;font-size:12px;color:#aaa}
+.tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500}
+.tag-douyin{background:#fff0f0;color:#ff4d4f}
+.tag-kuaishou{background:#fff7e6;color:#fa8c16}
+.tag-xiaohongshu{background:#fff0f6;color:#eb2f96}
+.tag-weixin{background:#f0fff0;color:#52c41a}
+.tag-weibo{background:#fffbe6;color:#faad14}
+.tag-bilibili{background:#f0f5ff;color:#597ef7}
+.tag-default{background:#f5f5f5;color:#999}
+.media-section{margin-top:16px}
+.media-card{background:#fff;border-radius:8px;overflow:hidden;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.media-card img,.media-card video{width:100%;max-height:300px;object-fit:contain}
+.media-info{padding:12px}
+.media-name{font-weight:600;font-size:14px;margin-bottom:4px}
+.media-actions{display:flex;gap:8px;margin-top:8px}
+.btn{padding:8px 16px;border:none;border-radius:8px;cursor:pointer;font-size:13px;transition:all .2s;text-decoration:none;display:inline-block}
+.btn-primary{background:#667eea;color:#fff}
+.btn-outline{background:#fff;border:1px solid #ddd;color:#666}
+.btn-success{background:#52c41a;color:#fff}
+.btn-sm{padding:4px 10px;font-size:12px}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.8);color:#fff;padding:10px 24px;border-radius:8px;font-size:14px;z-index:9999;opacity:0;transition:opacity .3s}
+.toast.show{opacity:1}
+.paired-content{background:#f9f9ff;border:1px solid #e8e8f0;border-radius:8px;padding:10px;margin-top:8px;font-size:13px;color:#555;white-space:pre-wrap}
+.loading{text-align:center;padding:40px;color:#aaa}
+.empty{text-align:center;padding:40px;color:#aaa}
+.section-title{font-size:16px;font-weight:700;margin:20px 0 12px;padding-left:10px;border-left:4px solid #667eea}
+.platform-group{margin-bottom:20px}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1 id="shareTitle">📄 话术库分享</h1>
+  <p id="shareDesc"></p>
+</div>
+
+<div class="content">
+  <div id="loading" class="loading"><p>加载中...</p></div>
+  <div id="shareContent" style="display:none"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let supabaseClient = null;
+let shareData = null;
+let currentFilter = '';
+let currentPlatform = '';
+let searchKeyword = '';
+
+// 从 URL 获取分享 ID
+const urlParams = new URLSearchParams(window.location.search);
+const shareId = urlParams.get('sid') || '';
+
+const DEFAULT_SUPABASE_URL = 'https://mwitsgzwltsznfttgeyi.supabase.co';
+const DEFAULT_SUPABASE_KEY = 'sb_publishable_16bSgqs3xqmN7FKlyKdmDw_eZzqmiF4';
+
+function initSupabase() {
+  const url = localStorage.getItem('supabase_url') || DEFAULT_SUPABASE_URL;
+  const key = localStorage.getItem('supabase_key') || DEFAULT_SUPABASE_KEY;
+  if (url && key) {
+    supabaseClient = supabase.createClient(url, key);
+    return true;
+  }
+  return false;
+}
+
+async function loadShare() {
+  if (!shareId) {
+    document.getElementById('loading').innerHTML = '<p>❌ 无效的分享链接</p>';
+    return;
+  }
+  if (!initSupabase()) {
+    document.getElementById('loading').innerHTML = '<p>❌ 无法连接数据库，请检查配置</p>';
+    return;
+  }
+  try {
+    const { data, error } = await supabaseClient.from('shares').select('*').eq('share_id', shareId).single();
+    if (error || !data) {
+      document.getElementById('loading').innerHTML = '<p>❌ 分享不存在或已失效</p>';
+      return;
+    }
+    shareData = data;
+    // 增加浏览次数
+    await supabaseClient.from('shares').update({ view_count: (data.view_count || 0) + 1 }).eq('share_id', shareId);
+    
+    document.getElementById('shareTitle').textContent = '📄 ' + data.title;
+    if (data.description) document.getElementById('shareDesc').textContent = data.description;
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('shareContent').style.display = 'block';
+    renderContent();
+  } catch(e) {
+    document.getElementById('loading').innerHTML = '<p>❌ 加载失败: ' + e.message + '</p>';
+  }
+}
+
+function renderContent() {
+  const scripts = shareData.scripts || [];
+  const media = shareData.media_assets || [];
+  const platforms = [...new Set(scripts.map(s => s.platform))];
+  
+  let html = '';
+  
+  // 筛选栏
+  if (scripts.length > 0) {
+    html += '<div class="section-title">📋 话术文案</div>';
+    html += '<div class="filter-bar">';
+    html += `<button class="filter-btn ${!currentPlatform?'active':''}" onclick="filterPlatform('')">全部</button>`;
+    platforms.forEach(p => {
+      html += `<button class="filter-btn ${currentPlatform===p?'active':''}" onclick="filterPlatform('${p}')">${p}</button>`;
+    });
+    html += '</div>';
+    html += '<input type="text" class="search-box" placeholder="搜索文案..." value="' + searchKeyword + '" oninput="searchKeyword=this.value;renderScripts()">';
+    html += '<div id="scriptsContainer"></div>';
+  }
+  
+  // 媒体区
+  if (media.length > 0) {
+    html += '<div class="section-title">🎬 视频/图片素材</div>';
+    html += '<div id="mediaContainer"></div>';
+  }
+  
+  if (scripts.length === 0 && media.length === 0) {
+    html = '<div class="empty">此分享暂无内容</div>';
+  }
+  
+  document.getElementById('shareContent').innerHTML = html;
+  renderScripts();
+  renderMedia();
+}
+
+function renderScripts() {
+  const container = document.getElementById('scriptsContainer');
+  if (!container) return;
+  let scripts = shareData.scripts || [];
+  if (currentPlatform) scripts = scripts.filter(s => s.platform === currentPlatform);
+  if (searchKeyword) scripts = scripts.filter(s => (s.title||'').includes(searchKeyword) || (s.content||'').includes(searchKeyword));
+  
+  if (scripts.length === 0) { container.innerHTML = '<div class="empty">暂无匹配的文案</div>'; return; }
+  
+  // 按平台分组
+  const groups = {};
+  scripts.forEach(s => { if (!groups[s.platform]) groups[s.platform] = []; groups[s.platform].push(s); });
+  
+  container.innerHTML = Object.keys(groups).map(pf => {
+    return `<div class="platform-group">
+      ${platformTag(pf)}
+      ${groups[pf].map((s, i) => `
+        <div class="script-card" id="script-${s.id}" onclick="copyText(${s.id}, '${(s.content||'').replace(/'/g,"\\'").replace(/\n/g,'\\n')}')">
+          <div class="title">${s.type === '视频文案' ? '🎬 ' : '💬 '}${s.title}</div>
+          <div class="content">${(s.content||'').replace(/\n/g,'<br>')}</div>
+          ${s.media && s.media.length > 0 ? `<div class="meta"><span>📎 ${s.media.length}个附件</span></div>` : ''}
+          <div class="meta">
+            <span>👆 点击复制</span>
+            <span>📅 ${s.created_at ? new Date(s.created_at).toLocaleDateString() : ''}</span>
+          </div>
+        </div>`).join('')}
+    </div>`;
+  }).join('');
+}
+
+function renderMedia() {
+  const container = document.getElementById('mediaContainer');
+  if (!container) return;
+  const media = shareData.media_assets || [];
+  if (media.length === 0) { container.innerHTML = ''; return; }
+  
+  container.innerHTML = media.map(m => `
+    <div class="media-card">
+      ${m.type === 'video' 
+        ? `<video src="${m.url}" controls preload="metadata"></video>`
+        : `<img src="${m.url}" alt="${m.name}" loading="lazy">`}
+      <div class="media-info">
+        <div class="media-name">${m.type === 'video' ? '🎬 ' : '🖼 '}${m.name}</div>
+        ${platformTag(m.platform)}
+        ${m.paired_script_content ? `
+          <div class="paired-content">
+            <b>📝 配对文案：</b><br>${m.paired_script_content.replace(/\n/g,'<br>')}
+            <button class="btn btn-outline btn-sm" style="margin-top:6px" onclick="copyPaired('${(m.paired_script_content||'').replace(/'/g,"\\'").replace(/\n/g,'\\n')}')">📋 复制文案</button>
+          </div>` : ''}
+        <div class="media-actions">
+          <button class="btn btn-success btn-sm" onclick="downloadFile('${m.url}','${m.name}')">⬇ 下载</button>
+          <button class="btn btn-outline btn-sm" onclick="copyUrl('${m.url}')">📋 复制链接</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function filterPlatform(pf) {
+  currentPlatform = pf;
+  renderContent();
+}
+
+function copyText(id, text) {
+  navigator.clipboard.writeText(text).then(() => {
+    const card = document.getElementById('script-' + id);
+    if (card) { card.classList.add('copied'); setTimeout(() => card.classList.remove('copied'), 2000); }
+    showToast('✅ 已复制');
+  });
+}
+
+function copyPaired(text) {
+  navigator.clipboard.writeText(text).then(() => showToast('✅ 文案已复制'));
+}
+
+function copyUrl(url) {
+  navigator.clipboard.writeText(url).then(() => showToast('✅ 链接已复制'));
+}
+
+function downloadFile(url, name) {
+  const a = document.createElement('a');
+  a.href = url; a.download = name; a.target = '_blank';
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
+function platformTag(pf) {
+  const map = { '抖音':'douyin','快手':'kuaishou','小红书':'xiaohongshu','微信':'weixin','微博':'weibo','B站':'bilibili' };
+  const cls = map[pf] || 'default';
+  return `<span class="tag tag-${cls}">${pf || '通用'}</span>`;
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 1500);
+}
+
+// 启动
+loadShare();
+</script>
+</body>
+</html>
