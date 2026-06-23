@@ -4,34 +4,23 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>话术素材库</title>
-<!-- 同步加载 Supabase SDK，确保执行前已加载完 -->
 <script src="./supabase.js"></script>
-<script>
-// 全局错误捕获，防止页面闪退
-window.addEventListener('error', function(e) {
-  console.error('全局错误:', e.error || e.message);
-});
-window.addEventListener('unhandledrejection', function(e) {
-  console.error('未处理的 Promise 拒绝:', e.reason);
-  e.preventDefault();
-});
-</script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f6fa;color:#333;min-height:100vh}
-.header{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:20px;text-align:center;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f6fa;color:#333;min-height:100vh;-webkit-overflow-scrolling:touch}
+.header{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:20px 16px;text-align:center;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.15)}
 .header h1{font-size:20px;font-weight:700}
 .header p{font-size:13px;opacity:.85;margin-top:4px}
 .stats-bar{display:flex;justify-content:center;gap:16px;margin-top:8px;font-size:12px;opacity:.9;flex-wrap:wrap}
 .content{max-width:900px;margin:0 auto;padding:16px}
-.filter-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;background:#fff;padding:12px;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.06);position:sticky;top:90px;z-index:50;align-items:center}
+.filter-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;background:#fff;padding:12px;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.06);position:sticky;top:88px;z-index:50;align-items:center}
 .filter-btn{padding:6px 14px;border:1px solid #ddd;border-radius:20px;background:#fff;cursor:pointer;font-size:13px;transition:all .2s}
 .filter-btn.active{background:#667eea;color:#fff;border-color:#667eea}
-.pair-card{background:#fff;border-radius:12px;margin-bottom:16px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.06);transition:all .2s;border:2px solid transparent}
-.pair-card.extracted{opacity:.7;border-color:#ffa39e}
-.pair-card video,.pair-card img{width:100%;max-height:400px;object-fit:contain;background:#000}
+.pair-card{background:#fff;border-radius:12px;margin-bottom:16px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.06);transition:opacity .2s;border:2px solid transparent}
+.pair-card.extracted{opacity:.75;border-color:#ffa39e}
+.pair-card video,.pair-card img{width:100%;max-height:400px;object-fit:contain;background:#000;display:block}
 .pair-info{padding:16px}
-.pair-info .name{font-weight:600;font-size:14px;margin-bottom:8px}
+.pair-info .name{font-weight:600;font-size:14px;margin-bottom:8px;word-break:break-all}
 .platform-tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500;margin-right:6px}
 .tag-douyin{background:#fff0f0;color:#ff4d4f}
 .tag-kuaishou{background:#fff7e6;color:#fa8c16}
@@ -40,26 +29,25 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .tag-weibo{background:#fffbe6;color:#faad14}
 .tag-bilibili{background:#f0f5ff;color:#597ef7}
 .tag-default{background:#f5f5f5;color:#999}
-.script-box{background:#f9f9ff;border:1px solid #e8e8f0;border-radius:8px;padding:12px;margin:12px 0;font-size:14px;line-height:1.6;white-space:pre-wrap;color:#555}
-.pair-card.extracted .script-box{background:#f5f5f5;color:#aaa;text-decoration:line-through}
+.script-box{background:#f9f9ff;border:1px solid #e8e8f0;border-radius:8px;padding:12px;margin:12px 0;font-size:14px;line-height:1.6;white-space:pre-wrap;color:#555;word-break:break-word}
 .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
-.btn{padding:10px 18px;border:none;border-radius:8px;cursor:pointer;font-size:14px;transition:all .2s;text-decoration:none;display:inline-flex;align-items:center;gap:4px}
-.btn-extract{background:#52c41a;color:#fff;flex:1;justify-content:center;font-weight:600}
+.btn{padding:10px 18px;border:none;border-radius:8px;cursor:pointer;font-size:14px;transition:all .2s;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:4px}
+.btn-extract{background:#52c41a;color:#fff;flex:1;font-weight:600}
 .btn-extract:hover{background:#389e0d}
-.btn-download{background:#667eea;color:#fff}
 .btn-copy{background:#fff;border:1px solid #667eea;color:#667eea}
+.btn-copy:hover{background:#667eea;color:#fff}
 .btn:disabled{background:#d9d9d9;color:#fff;cursor:not-allowed;border:none}
-.btn-extracted{background:#f5f5f5;color:#999;cursor:not-allowed;flex:1;justify-content:center;border:1px solid #d9d9d9}
+.btn-extracted{background:#f5f5f5;color:#999;cursor:default;flex:1;border:1px solid #d9d9d9}
 .status-badge{display:inline-block;padding:4px 12px;border-radius:16px;font-size:12px;font-weight:600}
 .status-free{background:#f6ffed;color:#52c41a;border:1px solid #b7eb8f}
 .status-used{background:#fff1f0;color:#ff4d4f;border:1px solid #ffa39e}
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;justify-content:center;align-items:center;z-index:1000}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;justify-content:center;align-items:center;z-index:1000;padding:16px}
 .modal-overlay.show{display:flex}
-.modal{background:#fff;border-radius:12px;padding:24px;max-width:400px;width:90%;text-align:center}
+.modal{background:#fff;border-radius:12px;padding:24px;max-width:400px;width:100%;text-align:center}
 .modal h3{margin-bottom:12px}
-.modal p{font-size:14px;color:#666;margin-bottom:16px}
+.modal p{font-size:14px;color:#666;margin-bottom:16px;line-height:1.7}
 .modal .actions{justify-content:center}
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.85);color:#fff;padding:12px 24px;border-radius:8px;font-size:14px;z-index:9999;opacity:0;transition:opacity .3s}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.85);color:#fff;padding:12px 24px;border-radius:8px;font-size:14px;z-index:9999;opacity:0;transition:opacity .3s;max-width:90%;text-align:center}
 .toast.show{opacity:1}
 .loading{text-align:center;padding:60px 20px;color:#aaa}
 .loading .spinner{width:32px;height:32px;border:3px solid #eee;border-top-color:#667eea;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px}
@@ -69,7 +57,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .type-video{background:#e6f7ff;color:#1890ff}
 .type-comment{background:#fff7e6;color:#fa8c16}
 .platform-picker{position:fixed;inset:0;background:linear-gradient(135deg,#667eea,#764ba2);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto}
-.platform-picker-card{background:#fff;border-radius:20px;padding:32px 24px;max-width:560px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.platform-picker-card{background:#fff;border-radius:20px;padding:32px 24px;max-width:560px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3);margin:auto}
 .platform-picker-card h2{text-align:center;font-size:22px;margin-bottom:8px;color:#26215C}
 .platform-picker-card .sub{text-align:center;font-size:13px;color:#888;margin-bottom:24px}
 .platform-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:12px;margin-bottom:8px}
@@ -82,8 +70,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .platform-card.all{background:linear-gradient(135deg,#EEEDFE,#fff);border-color:#7F77DD}
 .back-to-picker{display:inline-block;padding:6px 14px;background:#fff;border:1px solid #667eea;color:#667eea;border-radius:20px;font-size:12px;cursor:pointer;margin-bottom:12px}
 .back-to-picker:hover{background:#667eea;color:#fff}
-.sub-filter-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
-.sub-filter-row span{font-size:12px;color:#888}
+/* 视频懒加载占位 */
+.video-placeholder{position:relative;width:100%;height:240px;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;color:#fff}
+.video-placeholder .play-icon{font-size:48px;opacity:.9}
+.video-placeholder .play-tip{font-size:12px;opacity:.7;margin-top:8px}
+/* 加载更多指示器 */
+.load-more-indicator{text-align:center;padding:20px;color:#aaa;font-size:13px}
+.load-more-indicator .spinner{width:24px;height:24px;border:2px solid #eee;border-top-color:#667eea;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 8px}
 </style>
 </head>
 <body>
@@ -103,24 +96,27 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <div class="spinner"></div>
     <p>加载中...</p>
   </div>
-  
+
   <div id="mainContent" style="display:none">
     <button class="back-to-picker" onclick="showPlatformPicker()">← 切换平台</button>
     <div style="background:#fff;padding:8px 14px;border-radius:8px;margin-bottom:12px;font-size:13px;color:#666">
       当前：<b id="currentPlatformLabel" style="color:#667eea">全部平台</b> / <b id="currentTypeLabel" style="color:#1890ff">全部类型</b>
     </div>
 
-    <div class="filter-bar" style="margin-bottom:16px">
+    <div class="filter-bar">
       <span style="font-size:12px;color:#888;margin-right:4px">类型：</span>
       <button class="filter-btn type-btn active" data-type="" onclick="filterContentType('')">全部</button>
       <button class="filter-btn type-btn" data-type="video_copy" onclick="filterContentType('video_copy')" style="border-color:#1890ff;color:#1890ff;font-weight:600">📝 视频文案</button>
-      <button class="filter-btn type-btn" data-type="comment" onclick="filterContentType('comment')" style="border-color:#fa8c16;color:#fa8c16;font-weight:600">📝 评论话术</button>
-      <button class="filter-btn type-btn" data-type="video" onclick="filterContentType('video')" style="border-color:#667eea;color:#667eea">🎬 视频</button>
-      <button class="filter-btn type-btn" data-type="image" onclick="filterContentType('image')" style="border-color:#eb2f96;color:#eb2f96">🖼 图片</button>
-      <button class="filter-btn" data-type="" onclick="filterStatus('free')" style="border-color:#52c41a;color:#52c41a">🟢 仅可提取</button>
-      <input type="text" id="searchInput" placeholder="🔍 搜索话术..." oninput="renderPairs()" style="padding:6px 12px;border:1px solid #ddd;border-radius:20px;font-size:13px;outline:none;flex:1;min-width:120px">
+      <button class="filter-btn type-btn" data-type="comment" onclick="filterContentType('comment')" style="border-color:#fa8c16;color:#fa8c16;font-weight:600">🖼 评论话术</button>
+      <button class="filter-btn" onclick="filterStatus('free')" style="border-color:#52c41a;color:#52c41a">🟢 仅可提取</button>
+      <input type="text" id="searchInput" placeholder="🔍 搜索话术..." oninput="onSearchInput()" style="padding:6px 12px;border:1px solid #ddd;border-radius:20px;font-size:13px;outline:none;flex:1;min-width:120px">
     </div>
     <div id="pairsList"></div>
+    <div id="loadMoreIndicator" class="load-more-indicator" style="display:none">
+      <div class="spinner"></div>
+      <p>加载更多...</p>
+    </div>
+    <div id="listEnd" style="display:none;text-align:center;padding:16px;color:#bbb;font-size:12px">— 已加载全部 —</div>
   </div>
 </div>
 
@@ -136,7 +132,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 <div class="modal-overlay" id="extractModal">
   <div class="modal">
     <h3>⚠️ 确认提取</h3>
-    <p id="extractModalText">提取后此内容将锁定，其他人无法再提取。确定要提取吗？<br><br>提取后将自动：<br>📦 下载视频/图片到手机<br>📋 复制文案到剪贴板</p>
+    <p id="extractModalText">提取后此内容将锁定，其他人无法再提取。确定要提取吗？<br><br>提取后将自动：<br>🖼 <b>评论话术</b>：下载图片 + 复制话术<br>📝 <b>视频文案</b>：复制文案到剪贴板</p>
     <div class="actions">
       <button class="btn btn-copy" onclick="closeExtractModal()">取消</button>
       <button class="btn btn-extract" onclick="confirmExtract()">✅ 确认提取</button>
@@ -147,6 +143,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 <div class="toast" id="toast"></div>
 
 <script>
+/* ============================================================
+ *  share.html  v3 — 修复闪退 + 稳定提取
+ *  核心修复点：
+ *  1. 分页渲染（每页 15 条 + 滚动加载），避免一次性创建几百个媒体元素导致内存爆炸
+ *  2. 视频懒加载：默认只渲染占位符，点击才创建 <video> 元素
+ *  3. 移除 30 秒定时自动刷新（原 scheduleLoadData 会在用户操作中突然重绘导致崩溃）
+ *  4. 卡片用 DOM API + textContent 创建，彻底避免话术含 < > & 字符破坏 HTML 结构
+ *  5. 图片下载 / 文案复制多级降级，兼容微信内置浏览器
+ *  6. 移除“下载视频”相关 UI 与逻辑
+ * ============================================================ */
+
 const DEFAULT_SUPABASE_URL = 'https://mwitsgzwltsznfttgeyi.supabase.co';
 const DEFAULT_SUPABASE_KEY = 'sb_publishable_16bSgqs3xqmN7FKlyKdmDw_eZzqmiF4';
 const PLATFORMS = [
@@ -157,12 +164,31 @@ const PLATFORMS = [
   { name: '微博', icon: '🔥', color: '#faad14' },
   { name: 'B站', icon: '📺', color: '#597ef7' }
 ];
+
+const PAGE_SIZE = 15; // 每页渲染条数，控制同时存在的媒体元素数量
+
 let supabaseClient = null;
 let allPairs = [];
 let currentPlatformFilter = '';
 let currentContentTypeFilter = '';
 let currentStatusFilter = '';
 let pendingExtractId = null;
+
+// 分页状态
+let currentFilteredList = [];
+let renderedCount = 0;
+let isLoadingMore = false;
+let searchDebounceTimer = null;
+let viewCounted = false; // 防止浏览计数重复
+
+// 全局错误兜底，避免白屏
+window.addEventListener('error', function(e) {
+  console.error('全局错误:', e.error || e.message);
+});
+window.addEventListener('unhandledrejection', function(e) {
+  console.error('未处理的 Promise 拒绝:', e.reason);
+  e.preventDefault();
+});
 
 function cleanSupabaseUrl(raw) {
   if (!raw) return raw;
@@ -174,9 +200,8 @@ function cleanSupabaseUrl(raw) {
 
 function initSupabase() {
   if (typeof supabase === 'undefined') {
-    const msg = '⚠️ Supabase SDK 正在加载，请稍后刷新页面';
     const el = document.getElementById('loading');
-    if (el) el.innerHTML = '<p>' + msg + '</p>';
+    if (el) el.innerHTML = '<p>⚠️ Supabase SDK 正在加载，请稍后刷新页面</p>';
     return false;
   }
   const url = cleanSupabaseUrl(localStorage.getItem('supabase_url') || DEFAULT_SUPABASE_URL);
@@ -185,46 +210,68 @@ function initSupabase() {
   return false;
 }
 
-async function loadData() {
-  if (!initSupabase()) { document.getElementById('loading').innerHTML = '<p>❌ 无法连接数据库</p>'; return; }
+async function loadData(silent) {
+  if (!initSupabase()) {
+    document.getElementById('loading').innerHTML = '<p>❌ 无法连接数据库</p>';
+    return;
+  }
   const urlParams = new URLSearchParams(window.location.search);
   const shareId = urlParams.get('sid') || '';
-  
+
+  if (!silent) {
+    // 仅首次显示全屏 loading
+  }
+
   try {
     if (shareId) {
-      const { data: share } = await supabaseClient.from('shares').select('*').eq('share_id', shareId).single();
-      if (share) {
-        document.getElementById('shareTitle').textContent = '📄 ' + share.title;
+      const { data: share, error: shareErr } = await supabaseClient.from('shares').select('*').eq('share_id', shareId).single();
+      if (share && !shareErr) {
+        document.getElementById('shareTitle').textContent = '📄 ' + (share.title || '话术素材库');
         if (share.description) document.getElementById('shareDesc').textContent = share.description;
-        await supabaseClient.from('shares').update({ view_count: (share.view_count || 0) + 1 }).eq('share_id', shareId);
+        // 浏览计数只 +1 一次，避免每次 loadData 都写库
+        if (!viewCounted) {
+          viewCounted = true;
+          try {
+            await supabaseClient.from('shares').update({ view_count: (share.view_count || 0) + 1 }).eq('share_id', shareId);
+          } catch(e) { /* 计数失败不影响主流程 */ }
+        }
       }
     }
-    
-    // 分步查询（不依赖外键）
+
+    // 分步查询（不依赖外键 JOIN，避免权限问题）
     const [pairRes, mediaRes, scriptRes] = await Promise.all([
       supabaseClient.from('pairs').select('*').order('created_at', { ascending: false }),
       supabaseClient.from('media_assets').select('*'),
       supabaseClient.from('scripts').select('*')
     ]);
-    
+
     const mediaMap = {};
     (mediaRes.data || []).forEach(m => { mediaMap[m.id] = m; });
     const scriptMap = {};
     (scriptRes.data || []).forEach(s => { scriptMap[s.id] = s; });
-    
+
     allPairs = (pairRes.data || []).map(p => ({
       ...p,
       media: mediaMap[p.media_id] || null,
       script: scriptMap[p.script_id] || null
     }));
-    
+
     document.getElementById('loading').style.display = 'none';
     document.getElementById('mainContent').style.display = 'block';
     updateStats();
-    renderPlatformPicker();
-    
+
     const presetPlatform = urlParams.get('platform') || '';
     const presetType = urlParams.get('type') || '';
+
+    // 静默刷新时保持当前筛选状态，只更新数据 + 刷新已渲染卡片，不重置列表
+    if (silent && currentFilteredList.length > 0) {
+      renderPlatformPicker();
+      refreshExistingCards();
+      return;
+    }
+
+    renderPlatformPicker();
+
     if (presetPlatform || presetType) {
       currentPlatformFilter = presetPlatform;
       currentContentTypeFilter = presetType;
@@ -235,7 +282,9 @@ async function loadData() {
       showPlatformPicker();
     }
   } catch(e) {
-    document.getElementById('loading').innerHTML = '<p>❌ 加载失败: ' + e.message + '</p>';
+    console.error('loadData error:', e);
+    const el = document.getElementById('loading');
+    if (el) el.innerHTML = '<p>❌ 加载失败: ' + (e.message || '未知错误') + '</p><button onclick="location.reload()" style="margin-top:12px;padding:8px 20px;border:none;border-radius:6px;background:#667eea;color:#fff;cursor:pointer">刷新重试</button>';
   }
 }
 
@@ -248,21 +297,16 @@ function updateStats() {
   document.getElementById('statUsed').textContent = used;
 }
 
-// 渲染平台选择页（含类型分类）
+/* ============ 平台选择器 ============ */
 function renderPlatformPicker() {
   const grid = document.getElementById('platformGrid');
   let html = '';
-  
-  // 全部平台 + 全部类型
+
   const allFree = allPairs.filter(p => !p.is_extracted).length;
-  html += `
-    <div class="platform-card all" onclick="selectPlatformType('','')">
-      <div class="icon">📋</div>
-      <div class="name">全部内容</div>
-      <div class="count">可提取 <b>${allFree}</b></div>
-    </div>`;
-  
-  // 按平台分类（含视频文案/评论话术子选项）
+  html += '<div class="platform-card all" onclick="selectPlatformType(\'\',\'\')">' +
+    '<div class="icon">📋</div><div class="name">全部内容</div>' +
+    '<div class="count">可提取 <b>' + allFree + '</b></div></div>';
+
   PLATFORMS.forEach(pf => {
     const pfPairs = allPairs.filter(p =>
       !p.is_extracted &&
@@ -270,33 +314,23 @@ function renderPlatformPicker() {
     );
     const videoCount = pfPairs.filter(p => p.pair_type === 'video_copy').length;
     const commentCount = pfPairs.filter(p => p.pair_type === 'comment').length;
-    
-    html += `
-    <div class="platform-card" style="border-left:4px solid ${pf.color}">
-      <div class="icon">${pf.icon}</div>
-      <div class="name">${pf.name}</div>
-      <div class="count">
-        <span style="color:#1890ff;cursor:pointer" onclick="event.stopPropagation();selectPlatformType('${pf.name}','video_copy')">📝 视频文案 ${videoCount}</span><br>
-        <span style="color:#fa8c16;cursor:pointer" onclick="event.stopPropagation();selectPlatformType('${pf.name}','comment')">🖼 图片+话术 ${commentCount}</span>
-      </div>
-    </div>`;
+    html += '<div class="platform-card" style="border-left:4px solid ' + pf.color + '">' +
+      '<div class="icon">' + pf.icon + '</div><div class="name">' + pf.name + '</div>' +
+      '<div class="count">' +
+      '<span style="color:#1890ff;cursor:pointer" onclick="event.stopPropagation();selectPlatformType(\'' + pf.name + '\',\'video_copy\')">📝 视频文案 ' + videoCount + '</span><br>' +
+      '<span style="color:#fa8c16;cursor:pointer" onclick="event.stopPropagation();selectPlatformType(\'' + pf.name + '\',\'comment\')">🖼 图片+话术 ' + commentCount + '</span>' +
+      '</div></div>';
   });
-  
-  // 全部视频文案 / 全部评论话术
+
   const allVideo = allPairs.filter(p => !p.is_extracted && p.pair_type === 'video_copy').length;
   const allComment = allPairs.filter(p => !p.is_extracted && p.pair_type === 'comment').length;
-  html += `
-    <div class="platform-card" style="border:2px solid #1890ff" onclick="selectPlatformType('','video_copy')">
-      <div class="icon">🎬</div>
-      <div class="name" style="color:#1890ff">全部视频文案</div>
-      <div class="count">可提取 <b>${allVideo}</b></div>
-    </div>
-    <div class="platform-card" style="border:2px solid #fa8c16" onclick="selectPlatformType('','comment')">
-      <div class="icon">📝</div>
-      <div class="name" style="color:#fa8c16">全部评论话术</div>
-      <div class="count">可提取 <b>${allComment}</b></div>
-    </div>`;
-  
+  html += '<div class="platform-card" style="border:2px solid #1890ff" onclick="selectPlatformType(\'\',\'video_copy\')">' +
+    '<div class="icon">🎬</div><div class="name" style="color:#1890ff">全部视频文案</div>' +
+    '<div class="count">可提取 <b>' + allVideo + '</b></div></div>';
+  html += '<div class="platform-card" style="border:2px solid #fa8c16" onclick="selectPlatformType(\'\',\'comment\')">' +
+    '<div class="icon">📝</div><div class="name" style="color:#fa8c16">全部评论话术</div>' +
+    '<div class="count">可提取 <b>' + allComment + '</b></div></div>';
+
   grid.innerHTML = html;
 }
 
@@ -304,7 +338,6 @@ function showPlatformPicker() {
   renderPlatformPicker();
   document.getElementById('platformPicker').style.display = 'flex';
 }
-
 function hidePlatformPicker() {
   document.getElementById('platformPicker').style.display = 'none';
 }
@@ -322,8 +355,6 @@ function updateCurrentLabel() {
   let typeLabel = '全部类型';
   if (currentContentTypeFilter === 'video_copy') typeLabel = '视频文案';
   else if (currentContentTypeFilter === 'comment') typeLabel = '评论话术';
-  else if (currentContentTypeFilter === 'video') typeLabel = '视频';
-  else if (currentContentTypeFilter === 'image') typeLabel = '图片';
   document.getElementById('currentPlatformLabel').textContent = platLabel;
   document.getElementById('currentTypeLabel').textContent = typeLabel;
 }
@@ -343,7 +374,13 @@ function filterStatus(status) {
   renderPairs();
 }
 
-function renderPairs() {
+function onSearchInput() {
+  if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+  searchDebounceTimer = setTimeout(renderPairs, 300);
+}
+
+/* ============ 列表渲染（分页 + 懒加载） ============ */
+function getFilteredList() {
   let list = allPairs;
 
   if (currentPlatformFilter) {
@@ -352,17 +389,13 @@ function renderPairs() {
       (p.script?.platform === currentPlatformFilter)
     );
   }
-
   if (currentContentTypeFilter) {
     list = list.filter(p => {
-      if (currentContentTypeFilter === 'video') return p.media?.type === 'video';
-      if (currentContentTypeFilter === 'image') return p.media?.type === 'image';
       if (currentContentTypeFilter === 'comment') return p.pair_type === 'comment';
       if (currentContentTypeFilter === 'video_copy') return p.pair_type === 'video_copy';
       return true;
     });
   }
-
   if (currentStatusFilter === 'free') list = list.filter(p => !p.is_extracted);
 
   const keyword = (document.getElementById('searchInput')?.value || '').trim().toLowerCase();
@@ -373,52 +406,229 @@ function renderPairs() {
       (p.media?.name || '').toLowerCase().includes(keyword)
     );
   }
-  
-  const container = document.getElementById('pairsList');
-  if (list.length === 0) {
-    container.innerHTML = `<div class="empty">
-      <p style="font-size:32px;margin-bottom:12px">📭</p>
-      <p>暂无可提取的内容</p>
-      <p style="font-size:12px;margin-top:8px">试试切换其他平台或类型</p>
-      <button class="back-to-picker" style="margin-top:16px" onclick="showPlatformPicker()">← 返回选择</button>
-    </div>`;
-    return;
-  }
-  
-  container.innerHTML = list.map(p => {
-    const isVideo = p.media?.type === 'video';
-    const typeLabel = p.pair_type === 'video_copy' ? '视频配文案' : '图片配话术';
-    return `
-    <div class="pair-card ${p.is_extracted ? 'extracted' : ''}" id="pair-${p.id}">
-      ${isVideo 
-        ? `<video src="${p.media?.url}" controls preload="metadata"></video>`
-        : `<img src="${p.media?.url}" loading="lazy">`}
-      <div class="pair-info">
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px">
-          <div class="name">${isVideo ? '🎬 ' : '🖼 '}${p.media?.name || ''}</div>
-          <span class="status-badge ${p.is_extracted ? 'status-used' : 'status-free'}">
-            ${p.is_extracted ? '✅ 已被提取' : '🟢 可提取'}
-          </span>
-        </div>
-        <div style="margin-top:4px">
-          <span class="platform-tag ${platformClass(p.media?.platform)}">${p.media?.platform || '通用'}</span>
-          <span class="pair-type-tag ${p.pair_type === 'video_copy' ? 'type-video' : 'type-comment'}">${typeLabel}</span>
-        </div>
-        <div class="script-box">
-          <b style="font-size:12px;color:#888">📝 ${p.script?.title || ''}</b><br><br>
-          ${(p.script?.content || '').replace(/\n/g, '<br>')}
-        </div>
-        <div class="actions">
-          ${p.is_extracted 
-            ? `<button class="btn btn-extracted" disabled>🔒 已被提取</button>`
-            : `<button class="btn btn-extract" onclick="openExtractModal(${p.id})">✅ 立即提取（${p.pair_type === 'video_copy' ? '自动复制文案' : '自动下载+复制'}）</button>`}
-        </div>
-        ${p.is_extracted && p.extracted_at ? `<p style="font-size:11px;color:#aaa;margin-top:8px">提取时间: ${new Date(p.extracted_at).toLocaleString()}</p>` : ''}
-      </div>
-    </div>`;
-  }).join('');
+  return list;
 }
 
+function renderPairs() {
+  currentFilteredList = getFilteredList();
+  renderedCount = 0;
+  const container = document.getElementById('pairsList');
+  container.innerHTML = '';
+  document.getElementById('listEnd').style.display = 'none';
+
+  if (currentFilteredList.length === 0) {
+    container.innerHTML = '<div class="empty">' +
+      '<p style="font-size:32px;margin-bottom:12px">📭</p>' +
+      '<p>暂无可提取的内容</p>' +
+      '<p style="font-size:12px;margin-top:8px">试试切换其他平台或类型</p>' +
+      '<button class="back-to-picker" style="margin-top:16px" onclick="showPlatformPicker()">← 返回选择</button>' +
+      '</div>';
+    return;
+  }
+
+  appendNextPage();
+}
+
+function appendNextPage() {
+  if (isLoadingMore) return;
+  if (renderedCount >= currentFilteredList.length) {
+    document.getElementById('loadMoreIndicator').style.display = 'none';
+    document.getElementById('listEnd').style.display = 'block';
+    return;
+  }
+  isLoadingMore = true;
+  const container = document.getElementById('pairsList');
+  const frag = document.createDocumentFragment();
+  const end = Math.min(renderedCount + PAGE_SIZE, currentFilteredList.length);
+
+  for (let i = renderedCount; i < end; i++) {
+    frag.appendChild(createPairCard(currentFilteredList[i]));
+  }
+  container.appendChild(frag);
+  renderedCount = end;
+  isLoadingMore = false;
+
+  if (renderedCount < currentFilteredList.length) {
+    document.getElementById('loadMoreIndicator').style.display = 'block';
+    document.getElementById('listEnd').style.display = 'none';
+    ensureObserver();
+  } else {
+    document.getElementById('loadMoreIndicator').style.display = 'none';
+    document.getElementById('listEnd').style.display = 'block';
+  }
+}
+
+let loadMoreObserver = null;
+function ensureObserver() {
+  if (loadMoreObserver) return;
+  const sentinel = document.getElementById('loadMoreIndicator');
+  if (!sentinel) return;
+  if (!('IntersectionObserver' in window)) {
+    // 降级：滚动事件
+    window.addEventListener('scroll', onScrollFallback);
+    return;
+  }
+  loadMoreObserver = new IntersectionObserver(function(entries) {
+    if (entries[0].isIntersecting) {
+      appendNextPage();
+    }
+  }, { rootMargin: '300px' });
+  loadMoreObserver.observe(sentinel);
+}
+
+function onScrollFallback() {
+  const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+  const scrollHeight = document.documentElement.scrollHeight;
+  const clientHeight = document.documentElement.clientHeight;
+  if (scrollTop + clientHeight >= scrollHeight - 400) {
+    appendNextPage();
+  }
+}
+
+/* ============ 创建单个卡片（DOM API，安全） ============ */
+function createPairCard(p) {
+  const isVideo = p.media?.type === 'video';
+  const typeLabel = p.pair_type === 'video_copy' ? '视频配文案' : '图片配话术';
+
+  const card = document.createElement('div');
+  card.className = 'pair-card' + (p.is_extracted ? ' extracted' : '');
+  card.id = 'pair-' + p.id;
+
+  // 媒体区域：视频懒加载，图片原生懒加载
+  if (isVideo) {
+    // 视频先用占位符，点击才创建 video 元素，避免几百个 video 同时存在导致崩溃
+    const ph = document.createElement('div');
+    ph.className = 'video-placeholder';
+    const icon = document.createElement('div');
+    icon.className = 'play-icon';
+    icon.textContent = '▶';
+    const tip = document.createElement('div');
+    tip.className = 'play-tip';
+    tip.textContent = '点击加载视频';
+    ph.appendChild(icon);
+    ph.appendChild(tip);
+    ph.onclick = function() {
+      const v = document.createElement('video');
+      v.src = p.media?.url || '';
+      v.controls = true;
+      v.preload = 'auto';
+      v.style.width = '100%';
+      v.style.maxHeight = '400px';
+      v.style.display = 'block';
+      v.style.background = '#000';
+      ph.replaceWith(v);
+      v.play().catch(function(){});
+    };
+    card.appendChild(ph);
+  } else {
+    // 图片用原生 loading="lazy"，浏览器自动按需加载
+    const img = document.createElement('img');
+    img.src = p.media?.url || '';
+    img.loading = 'lazy';
+    img.alt = p.media?.name || '';
+    img.onerror = function() { img.style.background = '#f5f5f5'; };
+    card.appendChild(img);
+  }
+
+  // 信息区
+  const info = document.createElement('div');
+  info.className = 'pair-info';
+
+  // 标题行
+  const titleRow = document.createElement('div');
+  titleRow.style.cssText = 'display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px';
+  const nameDiv = document.createElement('div');
+  nameDiv.className = 'name';
+  nameDiv.textContent = (isVideo ? '🎬 ' : '🖼 ') + (p.media?.name || '');
+  const badge = document.createElement('span');
+  badge.className = 'status-badge ' + (p.is_extracted ? 'status-used' : 'status-free');
+  badge.textContent = p.is_extracted ? '✅ 已被提取' : '🟢 可提取';
+  titleRow.appendChild(nameDiv);
+  titleRow.appendChild(badge);
+  info.appendChild(titleRow);
+
+  // 标签行
+  const tagRow = document.createElement('div');
+  tagRow.style.marginTop = '4px';
+  const ptag = document.createElement('span');
+  ptag.className = 'platform-tag ' + platformClass(p.media?.platform);
+  ptag.textContent = p.media?.platform || '通用';
+  const ttag = document.createElement('span');
+  ttag.className = 'pair-type-tag ' + (p.pair_type === 'video_copy' ? 'type-video' : 'type-comment');
+  ttag.textContent = typeLabel;
+  tagRow.appendChild(ptag);
+  tagRow.appendChild(ttag);
+  info.appendChild(tagRow);
+
+  // 文案区（用 textContent，避免 HTML 注入崩溃）
+  const box = document.createElement('div');
+  box.className = 'script-box';
+  const titleB = document.createElement('b');
+  titleB.style.cssText = 'font-size:12px;color:#888';
+  titleB.textContent = '📝 ' + (p.script?.title || '');
+  box.appendChild(titleB);
+  box.appendChild(document.createElement('br'));
+  box.appendChild(document.createElement('br'));
+  const contentNode = document.createTextNode(p.script?.content || '');
+  box.appendChild(contentNode);
+  info.appendChild(box);
+
+  // 操作区
+  const actions = document.createElement('div');
+  actions.className = 'actions';
+
+  if (p.is_extracted) {
+    const extBtn = document.createElement('button');
+    extBtn.className = 'btn btn-extracted';
+    extBtn.disabled = true;
+    extBtn.textContent = '🔒 已被提取';
+    actions.appendChild(extBtn);
+
+    // 已提取也保留复制文案按钮（方便提取者再次复制）
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'btn btn-copy';
+    copyBtn.textContent = '📋 复制文案';
+    copyBtn.onclick = function() {
+      copyText(p.script?.content || '').then(function(ok) {
+        showToast(ok ? '✅ 文案已复制' : '📋 请长按文案手动复制');
+        if (!ok) showManualCopy(p.script?.content || '');
+      });
+    };
+    actions.appendChild(copyBtn);
+
+    if (p.extracted_at) {
+      const time = document.createElement('p');
+      time.style.cssText = 'font-size:11px;color:#aaa;margin-top:8px;width:100%';
+      time.textContent = '提取时间: ' + new Date(p.extracted_at).toLocaleString();
+      actions.appendChild(time);
+    }
+  } else {
+    const extBtn = document.createElement('button');
+    extBtn.className = 'btn btn-extract';
+    const btnLabel = p.pair_type === 'video_copy' ? '✅ 立即提取（复制文案）' : '✅ 立即提取（下载图片+复制话术）';
+    extBtn.textContent = btnLabel;
+    extBtn.onclick = function() { openExtractModal(p.id); };
+    actions.appendChild(extBtn);
+  }
+
+  info.appendChild(actions);
+  card.appendChild(info);
+  return card;
+}
+
+/* 静默刷新已渲染的卡片状态（提取后局部更新，不全量重绘） */
+function refreshExistingCards() {
+  for (let i = 0; i < renderedCount && i < currentFilteredList.length; i++) {
+    const p = currentFilteredList[i];
+    const oldCard = document.getElementById('pair-' + p.id);
+    if (!oldCard) continue;
+    const newCard = createPairCard(p);
+    oldCard.replaceWith(newCard);
+  }
+  updateStats();
+}
+
+/* ============ 提取流程 ============ */
 function openExtractModal(pairIdValue) {
   pendingExtractId = pairIdValue;
   const modal = document.getElementById('extractModal');
@@ -436,149 +646,230 @@ async function confirmExtract() {
   const currentPairId = pendingExtractId;
   closeExtractModal();
 
-  // 先检查是否已被提取（并发保护）
-  const { data: current } = await supabaseClient.from('pairs').select('is_extracted').eq('id', currentPairId).single();
-  if (current && current.is_extracted) {
-    showToast('❌ 该内容刚被其他人提取了');
-    await loadData();
-    return;
-  }
+  // 提取按钮禁用，防止重复点击
+  const btn = document.querySelector('#pair-' + currentPairId + ' .btn-extract');
+  if (btn) { btn.disabled = true; btn.textContent = '提取中...'; }
 
-  const extractedBy = 'user_' + Math.random().toString(36).slice(2, 10);
-
-  const { error } = await supabaseClient.from('pairs').update({
-    is_extracted: true,
-    extracted_by: extractedBy,
-    extracted_at: new Date().toISOString()
-  }).eq('id', currentPairId).eq('is_extracted', false);
-
-  if (error) {
-    showToast('❌ 提取失败: ' + error.message);
-    return;
-  }
-
-  const { data: updated } = await supabaseClient.from('pairs').select('is_extracted').eq('id', currentPairId).single();
-  if (!updated || !updated.is_extracted) {
-    showToast('❌ 该内容刚被其他人提取了');
-    await loadData();
-    return;
-  }
-
-  // 自动处理：图片配话术→下载图片+复制话术；视频配文案→只复制文案
-  const matchedPair = allPairs.find(p => p.id === currentPairId);
-  if (matchedPair) {
-    let downloaded = false;
-    let copied = false;
-
-    // 图片配话术：下载图片到手机（视频配文案不下载视频，避免手机内存爆炸）
-    if (matchedPair.pair_type === 'comment' && matchedPair.media && matchedPair.media.url) {
-      try {
-        const response = await fetch(matchedPair.media.url);
-        const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = matchedPair.media.name || 'image.jpg';
-        a.style.display = 'none';
-        document.body.appendChild(a);
-        a.click();
-        setTimeout(() => {
-          try { document.body.removeChild(a); } catch(e) {}
-          URL.revokeObjectURL(url);
-        }, 1000);
-        downloaded = true;
-      } catch(e) {
-        try { window.open(matchedPair.media.url, '_blank'); } catch(e2) {}
-        console.warn('图片下载失败:', e);
-      }
+  try {
+    // 并发保护：先检查是否已被提取
+    const { data: current } = await supabaseClient.from('pairs').select('is_extracted').eq('id', currentPairId).single();
+    if (current && current.is_extracted) {
+      showToast('❌ 该内容刚被其他人提取了');
+      await loadData(true);
+      return;
     }
 
-    // 复制文案（视频文案 和 评论话术 都复制）
-    if (matchedPair.script && matchedPair.script.content) {
-      try {
-        await navigator.clipboard.writeText(matchedPair.script.content);
-        copied = true;
-      } catch(e1) {
-        try {
-          const ta = document.createElement('textarea');
-          ta.value = matchedPair.script.content;
-          ta.style.position = 'fixed';
-          ta.style.opacity = '0';
-          document.body.appendChild(ta);
-          ta.focus(); ta.select();
-          if (document.execCommand('copy')) copied = true;
-          try { document.body.removeChild(ta); } catch(e3) {}
-        } catch(e2) {}
-      }
+    const extractedBy = 'user_' + Math.random().toString(36).slice(2, 10);
+    const { error } = await supabaseClient.from('pairs').update({
+      is_extracted: true,
+      extracted_by: extractedBy,
+      extracted_at: new Date().toISOString()
+    }).eq('id', currentPairId).eq('is_extracted', false);
+
+    if (error) {
+      showToast('❌ 提取失败: ' + error.message);
+      if (btn) { btn.disabled = false; btn.textContent = '✅ 立即提取'; }
+      return;
     }
 
-    // 根据结果给提示
+    const { data: updated } = await supabaseClient.from('pairs').select('is_extracted').eq('id', currentPairId).single();
+    if (!updated || !updated.is_extracted) {
+      showToast('❌ 该内容刚被其他人提取了');
+      await loadData(true);
+      return;
+    }
+
+    // 更新本地数据状态
+    const matchedPair = allPairs.find(p => p.id === currentPairId);
+    if (matchedPair) {
+      matchedPair.is_extracted = true;
+      matchedPair.extracted_by = extractedBy;
+      matchedPair.extracted_at = new Date().toISOString();
+      // 同步筛选列表里的引用
+      const idx = currentFilteredList.findIndex(p => p.id === currentPairId);
+      if (idx >= 0) {
+        currentFilteredList[idx] = matchedPair;
+        // 局部替换卡片
+        const oldCard = document.getElementById('pair-' + currentPairId);
+        if (oldCard) {
+          const newCard = createPairCard(matchedPair);
+          oldCard.replaceWith(newCard);
+        }
+      }
+      updateStats();
+      renderPlatformPicker();
+
+      // 执行下载 + 复制
+      await doExtractActions(matchedPair);
+    }
+  } catch(e) {
+    console.error('confirmExtract error:', e);
+    showToast('❌ 提取出错: ' + (e.message || ''));
+    if (btn) { btn.disabled = false; btn.textContent = '✅ 立即提取'; }
+  }
+}
+
+/* 提取后的实际动作：图片下载 + 文案复制 */
+async function doExtractActions(pair) {
+  let downloaded = false;
+  let copied = false;
+
+  // 评论话术：下载图片
+  if (pair.pair_type === 'comment' && pair.media && pair.media.url) {
+    downloaded = await downloadImage(pair.media.url, pair.media.name || 'image.jpg');
+  }
+
+  // 复制文案（视频文案 + 评论话术 都复制）
+  if (pair.script && pair.script.content) {
+    copied = await copyText(pair.script.content);
+  }
+
+  // 根据结果提示
+  if (pair.pair_type === 'comment') {
     if (copied && downloaded) {
       showToast('✅ 提取成功！图片已下载，话术已复制');
     } else if (copied && !downloaded) {
-      showToast('✅ 提取成功！视频文案已复制到剪贴板');
+      showToast('✅ 话术已复制！图片请在上方长按保存');
+      // 滚动到卡片图片位置，方便长按保存
+      const card = document.getElementById('pair-' + pair.id);
+      if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
     } else if (!copied && downloaded) {
-      showToast('✅ 图片已下载，请手动复制话术');
-      if (matchedPair.script && matchedPair.script.content) showManualCopy(matchedPair.script.content);
+      showToast('✅ 图片已下载，请复制下方话术');
+      if (pair.script && pair.script.content) showManualCopy(pair.script.content);
     } else {
-      showToast('✅ 提取成功');
-      if (matchedPair.script && matchedPair.script.content) showManualCopy(matchedPair.script.content);
+      showToast('✅ 提取成功，请手动操作');
+      if (pair.script && pair.script.content) showManualCopy(pair.script.content);
     }
   } else {
-    showToast('✅ 提取成功');
+    // 视频文案
+    if (copied) {
+      showToast('✅ 视频文案已复制到剪贴板');
+    } else {
+      showToast('✅ 提取成功，请复制下方文案');
+      if (pair.script && pair.script.content) showManualCopy(pair.script.content);
+    }
   }
-
-  await loadData();
 }
 
-// 手动复制兜底（手机端 clipboard API 可能失败）
+/* ============ 图片下载（多级降级） ============ */
+async function downloadImage(url, name) {
+  // 方案1：fetch blob + a.download（桌面 / 普通手机浏览器）
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(function() { controller.abort(); }, 15000);
+    const response = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    if (!response.ok) throw new Error('HTTP ' + response.status);
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = name;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function() {
+      try { document.body.removeChild(a); } catch(e) {}
+      URL.revokeObjectURL(blobUrl);
+    }, 3000);
+    return true;
+  } catch(e) {
+    console.warn('图片 blob 下载失败，降级为新窗口打开:', e);
+  }
+  // 方案2：直接新窗口打开（微信里可长按保存）
+  try {
+    window.open(url, '_blank');
+  } catch(e2) {
+    // 方案3：location 跳转
+    try { window.location.href = url; } catch(e3) {}
+  }
+  return false;
+}
+
+/* ============ 文案复制（多级降级） ============ */
+async function copyText(text) {
+  if (!text) return false;
+  // 方案1：Clipboard API
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch(e) { /* 降级 */ }
+  }
+  // 方案2：textarea + execCommand
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;top:-9999px;left:0;opacity:0';
+    ta.setAttribute('readonly', '');
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    ta.setSelectionRange(0, text.length);
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  } catch(e) {
+    return false;
+  }
+}
+
+/* 手动复制兜底（手机端 clipboard API 失败时） */
 function showManualCopy(text) {
+  // 移除已有的手动复制弹窗，避免叠加
+  document.querySelectorAll('.manual-copy-modal').forEach(function(el) { el.remove(); });
   const modal = document.createElement('div');
-  modal.className = 'modal-overlay show';
-  modal.innerHTML = `
-    <div class="modal">
-      <h3>📋 长按下方文案复制</h3>
-      <textarea style="width:100%;height:200px;padding:12px;border:1px solid #ddd;border-radius:8px;font-size:13px" readonly onclick="this.select()">${text}</textarea>
-      <div class="actions" style="margin-top:12px">
-        <button class="btn btn-extract" onclick="this.closest('.modal-overlay').remove()">✅ 我已复制</button>
-      </div>
-    </div>`;
+  modal.className = 'modal-overlay show manual-copy-modal';
+  const inner = document.createElement('div');
+  inner.className = 'modal';
+  const h3 = document.createElement('h3');
+  h3.textContent = '📋 长按下方文案复制';
+  const ta = document.createElement('textarea');
+  ta.style.cssText = 'width:100%;height:200px;padding:12px;border:1px solid #ddd;border-radius:8px;font-size:13px;resize:none';
+  ta.setAttribute('readonly', '');
+  ta.value = text;
+  ta.onclick = function() { ta.select(); };
+  const act = document.createElement('div');
+  act.className = 'actions';
+  act.style.marginTop = '12px';
+  const btn = document.createElement('button');
+  btn.className = 'btn btn-extract';
+  btn.textContent = '✅ 我已复制';
+  btn.onclick = function() { modal.remove(); };
+  act.appendChild(btn);
+  inner.appendChild(h3);
+  inner.appendChild(ta);
+  inner.appendChild(act);
+  modal.appendChild(inner);
   document.body.appendChild(modal);
 }
 
+/* ============ 工具函数 ============ */
 function platformClass(pf) {
   const map = { '抖音':'tag-douyin','快手':'tag-kuaishou','小红书':'tag-xiaohongshu','微信':'tag-weixin','微博':'tag-weibo','B站':'tag-bilibili' };
   return map[pf] || 'tag-default';
 }
 
+let toastTimer = null;
 function showToast(msg) {
   const t = document.getElementById('toast');
-  t.textContent = msg; t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 3000);
+  t.textContent = msg;
+  t.classList.add('show');
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(function() { t.classList.remove('show'); }, 3500);
 }
 
-// 安全加载，出错时给出提示而不闪退
+/* ============ 启动 ============ */
 try {
-  loadData();
+  loadData(false);
 } catch(e) {
-  console.error('初始化加载失败:', e);
+  console.error('初始化失败:', e);
   const loadingEl = document.getElementById('loading');
-  if (loadingEl) loadingEl.innerHTML = '<p>❌ 加载失败: ' + e.message + '</p><button onclick="location.reload()" style="margin-top:12px;padding:8px 20px;border:none;border-radius:6px;background:#667eea;color:#fff;cursor:pointer">刷新页面</button>';
+  if (loadingEl) loadingEl.innerHTML = '<p>❌ 加载失败: ' + (e.message || '') + '</p><button onclick="location.reload()" style="margin-top:12px;padding:8px 20px;border:none;border-radius:6px;background:#667eea;color:#fff;cursor:pointer">刷新重试</button>';
 }
 
-let loadTimer = null;
-function scheduleLoadData() {
-  if (loadTimer) clearTimeout(loadTimer);
-  loadTimer = setTimeout(async () => {
-    try {
-      if (document.getElementById('mainContent')?.style.display === 'block') {
-        await loadData();
-      }
-    } catch(e) { console.error('loadData error:', e); }
-    scheduleLoadData();
-  }, 30000);
-}
-scheduleLoadData();
+// 注意：已移除原来的 30 秒定时自动刷新（scheduleLoadData），这是闪退主因之一。
+// 提取操作完成后会局部更新对应卡片，无需全量刷新。
 </script>
 </body>
 </html>
