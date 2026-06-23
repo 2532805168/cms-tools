@@ -38,6 +38,12 @@ CREATE TABLE IF NOT EXISTS pairs (
   UNIQUE(script_id)
 );
 
+-- 外键约束（让 PostgREST 能识别关联关系，支持 JOIN 查询）
+ALTER TABLE pairs ADD CONSTRAINT fk_pairs_media
+  FOREIGN KEY (media_id) REFERENCES media_assets(id) ON DELETE CASCADE;
+ALTER TABLE pairs ADD CONSTRAINT fk_pairs_script
+  FOREIGN KEY (script_id) REFERENCES scripts(id) ON DELETE CASCADE;
+
 -- 4. 分享配置表
 CREATE TABLE IF NOT EXISTS shares (
   id          bigint generated always as identity primary key,
@@ -100,3 +106,16 @@ WITH CHECK ( bucket_id = 'media' );
 CREATE POLICY "public_delete_media"
 ON storage.objects FOR DELETE
 USING ( bucket_id = 'media' );
+
+-- ================================================================
+--  刷新 PostgREST Schema 缓存
+--  每次修改表结构后必须执行此命令！
+-- ================================================================
+NOTIFY pgrst, 'reload schema';
+
+-- ================================================================
+--  【已有数据库修复】如果 pairs 表已存在但缺少外键，单独执行：
+-- ================================================================
+-- ALTER TABLE pairs ADD CONSTRAINT fk_pairs_media FOREIGN KEY (media_id) REFERENCES media_assets(id);
+-- ALTER TABLE pairs ADD CONSTRAINT fk_pairs_script FOREIGN KEY (script_id) REFERENCES scripts(id);
+-- NOTIFY pgrst, 'reload schema';

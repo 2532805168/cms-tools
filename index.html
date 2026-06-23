@@ -132,6 +132,35 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <h3>📋 生成结果</h3>
     <div id="genResultList"></div>
   </div>
+  <div class="card" style="border:1px solid #ffa39e;background:#fff7f5">
+    <h3 style="border-left-color:#ff4d4f">🗑 批量删除话术</h3>
+    <p style="font-size:12px;color:#888;margin-bottom:12px">可按平台、类型批量删除已生成的话术</p>
+    <div class="form-row">
+      <div class="form-group" style="max-width:200px">
+        <label>平台</label>
+        <select id="batchDelScriptPlatform">
+          <option value="">全部平台</option>
+          <option value="抖音">抖音</option>
+          <option value="快手">快手</option>
+          <option value="小红书">小红书</option>
+          <option value="微信">微信</option>
+          <option value="微博">微博</option>
+          <option value="B站">B站</option>
+        </select>
+      </div>
+      <div class="form-group" style="max-width:200px">
+        <label>类型</label>
+        <select id="batchDelScriptType">
+          <option value="">全部类型</option>
+          <option value="评论话术">评论话术</option>
+          <option value="视频文案">视频文案</option>
+        </select>
+      </div>
+      <div class="form-group" style="max-width:120px;display:flex;align-items:flex-end">
+        <button class="btn btn-danger" onclick="batchDeleteScripts()">🗑 批量删除</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- 媒体上传 -->
@@ -156,12 +185,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
 <!-- 配对管理 -->
 <div id="tab-pair" class="tab-content" style="display:none">
+  <!-- 数据统计卡片 -->
+  <div class="card" style="background:linear-gradient(135deg,#f0f5ff,#fff)">
+    <h3>📊 提取数据统计</h3>
+    <div id="extractStats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px"></div>
+  </div>
+
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
       <h3 style="margin:0;border:none;padding:0">🔗 配对管理</h3>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-success btn-sm" onclick="autoPairAll('video')">🎬 视频配文案</button>
         <button class="btn btn-warning btn-sm" onclick="autoPairAll('image')">🖼 图片配话术</button>
+        <button class="btn btn-outline btn-sm" onclick="resetAllExtracted()">♻️ 一键复原所有提取</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteAllPairs()">🗑 一键删除所有配对</button>
         <button class="btn btn-outline btn-sm" onclick="loadPairs()">🔄 刷新</button>
       </div>
     </div>
@@ -387,33 +424,96 @@ async function generateAndSave() {
   } catch(e) { showToast('保存失败: ' + e.message); }
 }
 
-// 媒体上传
+// 媒体上传（增强版：详细错误 + 文件大小检查 + 重试）
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // Supabase 免费限制 50MB
+
 async function handleFileSelect(event) {
   const files = Array.from(event.target.files || []);
   if (files.length === 0) return;
+  if (!supabaseClient) { showToast('❌ 请先配置 Supabase'); return; }
+
   const platform = document.getElementById('mediaPlatform').value || '通用';
   const progress = document.getElementById('uploadProgress');
+  let successCount = 0;
+  let failCount = 0;
+
   for (let i = 0; i < files.length; i++) {
     const f = files[i];
     const isVideo = f.type.startsWith('video');
-    const ext = f.name.split('.').pop();
+    const ext = f.name.split('.').pop().toLowerCase();
+    // 清理文件名：去掉特殊字符，保留中文、英文、数字、.-_
+    const safeName = f.name.replace(/[^\w\u4e00-\u9fa5.\-]/g, '_');
     const fileName = `${isVideo ? 'videos' : 'images'}/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
-    progress.innerHTML = `<span class="spinner"></span> 上传中 ${i+1}/${files.length}: ${f.name}`;
+
+    // 文件大小检查
+    if (f.size > MAX_FILE_SIZE) {
+      const sizeMB = (f.size / 1024 / 1024).toFixed(1);
+      progress.innerHTML = `<span style="color:#ff4d4f">⚠️ ${f.name} (${sizeMB}MB) 超过 50MB 限制，已跳过</span>`;
+      failCount++;
+      continue;
+    }
+
+    progress.innerHTML = `<span class="spinner"></span> 上传中 ${i+1}/${files.length}: ${f.name} (${(f.size/1024/1024).toFixed(1)}MB)...`;
+
     try {
-      const { error: upErr } = await supabaseClient.storage.from('media').upload(fileName, f);
-      if (upErr) throw upErr;
-      const { data: urlData } = supabaseClient.storage.from('media').getPublicUrl(fileName);
+      // Step 1: 上传到 Supabase Storage
+      const { data: uploadData, error: upErr } = await supabaseClient.storage
+        .from('media')
+        .upload(fileName, f, {
+          contentType: f.type || (isVideo ? 'video/mp4' : 'image/jpeg'),
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (upErr) {
+        // 如果是"already exists"，尝试用新文件名重试
+        if (upErr.message && upErr.message.includes('already exists')) {
+          const retryName = `${isVideo ? 'videos' : 'images'}/${Date.now()}-${Math.random().toString(36).slice(2,10)}-${safeName}`;
+          const { error: retryErr } = await supabaseClient.storage.from('media').upload(retryName, f, { contentType: f.type });
+          if (retryErr) throw retryErr;
+          var finalPath = retryName;
+        } else {
+          throw upErr;
+        }
+      }
+      var finalPath = fileName;
+
+      // Step 2: 获取公开 URL
+      const { data: urlData } = supabaseClient.storage.from('media').getPublicUrl(finalPath);
+      const publicUrl = urlData.publicUrl;
+      if (!publicUrl) throw new Error('获取公开链接失败');
+
+      // Step 3: 写入数据库
       const { error: insertErr } = await supabaseClient.from('media_assets').insert({
-        url: urlData.publicUrl, name: f.name, type: isVideo ? 'video' : 'image',
-        platform, size: f.size
+        url: publicUrl,
+        name: safeName,
+        type: isVideo ? 'video' : 'image',
+        platform: platform,
+        size: f.size
       });
       if (insertErr) throw insertErr;
-    } catch(e) { showToast(`上传失败 ${f.name}: ${e.message}`); }
+
+      successCount++;
+    } catch(e) {
+      failCount++;
+      const errMsg = e?.message || JSON.stringify(e);
+      console.error(`[上传失败] ${f.name}:`, e);
+      progress.innerHTML += `<div style="color:#ff4d4f;font-size:12px;margin-top:4px">❌ ${f.name}: ${errMsg}</div>`;
+    }
   }
-  progress.innerHTML = '';
+
+  // 汇总结果
+  if (successCount > 0) showToast(`✅ 成功 ${successCount} 个${failCount > 0 ? `，失败 ${failCount} 个` : ''}`);
+  else if (failCount > 0) showToast(`❌ 全部失败 (${failCount} 个)，请查看上方错误信息`);
+
+  setTimeout(() => { progress.innerHTML = ''; }, 5000); // 5秒后清空进度
   event.target.value = '';
-  showToast(`✅ 上传完成 ${files.length} 个文件`);
   loadStats();
+
+  // 切换到配对管理标签页提示用户
+  if (successCount > 0) {
+    document.querySelector('[onclick="switchTab(event,\'pair\')"]').click();
+  }
 }
 
 // 配对管理
@@ -459,22 +559,191 @@ async function autoPairAll(mediaType) {
   } catch(e) { showToast('配对失败: ' + e.message); }
 }
 
+// 一键删除所有配对
+async function deleteAllPairs() {
+  if (!confirm('⚠️ 确定删除所有配对吗？\n\n此操作会清空 pairs 表，但不会删除媒体和话术本身。\n\n删除后需要重新配对。')) return;
+  if (!confirm('再次确认：真的要删除全部配对吗？')) return;
+  try {
+    const { error } = await supabaseClient.from('pairs').delete().neq('id', 0);
+    if (error) throw error;
+    showToast('✅ 已清空所有配对');
+    loadPairs(); loadStats();
+  } catch(e) { showToast('删除失败: ' + e.message); }
+}
+
+// 一键复原所有提取状态
+async function resetAllExtracted() {
+  if (!confirm('⚠️ 确定要复原所有已提取的配对吗？\n\n所有「已提取」的配对会恢复为「可提取」状态。\n\n注意：之前提取过的人已下载的内容不会回收。')) return;
+  try {
+    const { data, error } = await supabaseClient.from('pairs')
+      .update({ is_extracted: false, extracted_by: null, extracted_at: null })
+      .eq('is_extracted', true)
+      .select('id');
+    if (error) throw error;
+    const count = data ? data.length : 0;
+    showToast(`✅ 已复原 ${count} 个配对`);
+    loadPairs(); loadStats();
+  } catch(e) { showToast('复原失败: ' + e.message); }
+}
+
+// 单个复原
+async function resetOneExtracted(id) {
+  if (!confirm('确定复原此配对的提取状态？')) return;
+  try {
+    const { error } = await supabaseClient.from('pairs')
+      .update({ is_extracted: false, extracted_by: null, extracted_at: null })
+      .eq('id', id);
+    if (error) throw error;
+    showToast('✅ 已复原');
+    loadPairs(); loadStats();
+  } catch(e) { showToast('失败: ' + e.message); }
+}
+
+// 渲染提取数据统计
+function renderExtractStats(pairs, allMedia, allScripts) {
+  const container = document.getElementById('extractStats');
+  if (!container) return;
+  
+  const stats = {
+    total: pairs.length,
+    extracted: pairs.filter(p => p.is_extracted).length,
+    free: pairs.filter(p => !p.is_extracted).length,
+    videoCopy: { total: 0, extracted: 0 },
+    comment: { total: 0, extracted: 0 }
+  };
+  
+  // 平台维度
+  const platformStats = {};
+  PLATFORMS.forEach(p => { platformStats[p] = { total: 0, extracted: 0 }; });
+  platformStats['通用'] = { total: 0, extracted: 0 };
+  
+  // 媒体类型维度
+  const mediaTypeStats = { video: { total: 0, extracted: 0 }, image: { total: 0, extracted: 0 } };
+  
+  pairs.forEach(p => {
+    // 按配对类型
+    if (p.pair_type === 'video_copy') {
+      stats.videoCopy.total++;
+      if (p.is_extracted) stats.videoCopy.extracted++;
+    } else if (p.pair_type === 'comment') {
+      stats.comment.total++;
+      if (p.is_extracted) stats.comment.extracted++;
+    }
+    
+    // 按平台
+    const platform = p.media?.platform || p.script?.platform || '通用';
+    if (!platformStats[platform]) platformStats[platform] = { total: 0, extracted: 0 };
+    platformStats[platform].total++;
+    if (p.is_extracted) platformStats[platform].extracted++;
+    
+    // 按媒体类型
+    const mt = p.media?.type || 'image';
+    if (!mediaTypeStats[mt]) mediaTypeStats[mt] = { total: 0, extracted: 0 };
+    mediaTypeStats[mt].total++;
+    if (p.is_extracted) mediaTypeStats[mt].extracted++;
+  });
+  
+  let html = '';
+  
+  // 总览
+  html += `
+    <div style="background:#fff;padding:12px;border-radius:8px;border:1px solid #eee">
+      <div style="font-size:11px;color:#888">总配对</div>
+      <div style="font-size:20px;font-weight:600;color:#333">${stats.total}</div>
+    </div>
+    <div style="background:#fff;padding:12px;border-radius:8px;border:1px solid #b7eb8f">
+      <div style="font-size:11px;color:#888">可提取</div>
+      <div style="font-size:20px;font-weight:600;color:#52c41a">${stats.free}</div>
+    </div>
+    <div style="background:#fff;padding:12px;border-radius:8px;border:1px solid #ffa39e">
+      <div style="font-size:11px;color:#888">已提取</div>
+      <div style="font-size:20px;font-weight:600;color:#ff4d4f">${stats.extracted}</div>
+    </div>`;
+  
+  // 按配对类型
+  html += `
+    <div style="background:#fff;padding:12px;border-radius:8px;border:1px solid #1890ff">
+      <div style="font-size:11px;color:#888">🎬 视频文案</div>
+      <div style="font-size:16px;font-weight:600;color:#1890ff">${stats.videoCopy.extracted}/${stats.videoCopy.total}</div>
+      <div style="font-size:10px;color:#aaa">已提取/总数</div>
+    </div>
+    <div style="background:#fff;padding:12px;border-radius:8px;border:1px solid #fa8c16">
+      <div style="font-size:11px;color:#888">📝 评论话术</div>
+      <div style="font-size:16px;font-weight:600;color:#fa8c16">${stats.comment.extracted}/${stats.comment.total}</div>
+      <div style="font-size:10px;color:#aaa">已提取/总数</div>
+    </div>`;
+  
+  // 按平台
+  PLATFORMS.forEach(p => {
+    const s = platformStats[p] || { total: 0, extracted: 0 };
+    if (s.total === 0) return;
+    html += `
+    <div style="background:#fff;padding:12px;border-radius:8px;border:1px solid #eee">
+      <div style="font-size:11px;color:#888">${p}</div>
+      <div style="font-size:16px;font-weight:600;color:#667eea">${s.extracted}/${s.total}</div>
+      <div style="font-size:10px;color:#aaa">已提取/总数</div>
+    </div>`;
+  });
+  
+  // 按媒体类型
+  html += `
+    <div style="background:#fff;padding:12px;border-radius:8px;border:1px solid #eee">
+      <div style="font-size:11px;color:#888">🎬 视频提取</div>
+      <div style="font-size:16px;font-weight:600;color:#667eea">${mediaTypeStats.video.extracted}/${mediaTypeStats.video.total}</div>
+    </div>
+    <div style="background:#fff;padding:12px;border-radius:8px;border:1px solid #eee">
+      <div style="font-size:11px;color:#888">🖼 图片提取</div>
+      <div style="font-size:16px;font-weight:600;color:#eb2f96">${mediaTypeStats.image.extracted}/${mediaTypeStats.image.total}</div>
+    </div>`;
+  
+  container.innerHTML = html;
+}
+
 async function loadPairs() {
   if (!supabaseClient) return;
   try {
-    let query = supabaseClient.from('pairs').select(`
-      *,
-      media:media_assets(*),
-      script:scripts(*)
-    `).order('created_at', { ascending: false });
-    const ft = document.getElementById('pairFilterType').value;
-    const fs = document.getElementById('pairFilterStatus').value;
-    if (ft) query = query.eq('pair_type', ft);
-    if (fs === 'free') query = query.eq('is_extracted', false);
-    if (fs === 'used') query = query.eq('is_extracted', true);
-    const { data, error } = await query;
-    if (error) throw error;
-    allPairs = data || [];
+    let data = [];
+    
+    // 方案A：尝试 JOIN 查询
+    try {
+      let query = supabaseClient.from('pairs').select(`
+        *, media:media_assets(*), script:scripts(*)
+      `).order('created_at', { ascending: false });
+      const ft = document.getElementById('pairFilterType').value;
+      const fs = document.getElementById('pairFilterStatus').value;
+      if (ft) query = query.eq('pair_type', ft);
+      if (fs === 'free') query = query.eq('is_extracted', false);
+      if (fs === 'used') query = query.eq('is_extracted', true);
+      const { data: joined, error: je } = await query;
+      if (!je && joined) { data = joined; }
+      else throw je;
+    } catch(e) {
+      // 方案B：分步查询
+      const [pairRes, mediaRes, scriptRes] = await Promise.all([
+        supabaseClient.from('pairs').select('*').order('created_at', { ascending: false }),
+        supabaseClient.from('media_assets').select('*'),
+        supabaseClient.from('scripts').select('*')
+      ]);
+      const mediaMap = {};
+      (mediaRes.data || []).forEach(m => { mediaMap[m.id] = m; });
+      const scriptMap = {};
+      (scriptRes.data || []).forEach(s => { scriptMap[s.id] = s; });
+      
+      data = (pairRes.data || []).map(p => ({
+        ...p,
+        media: mediaMap[p.media_id] || null,
+        script: scriptMap[p.script_id] || null
+      }));
+      
+      // 应用筛选（因为 JOIN 失败了，这里需要手动过滤）
+      const ft2 = document.getElementById('pairFilterType').value;
+      const fs2 = document.getElementById('pairFilterStatus').value;
+      if (ft2) data = data.filter(p => p.pair_type === ft2);
+      if (fs2 === 'free') data = data.filter(p => !p.is_extracted);
+      if (fs2 === 'used') data = data.filter(p => p.is_extracted);
+    }
+    
+    allPairs = data;
     renderPairs(allPairs);
     loadUnpaired();
   } catch(e) { showToast('加载失败: ' + e.message); }
@@ -485,7 +754,7 @@ function renderPairs(list) {
   if (list.length === 0) { grid.innerHTML = '<div class="empty">暂无配对，请先上传媒体和生成话术后点配对按钮</div>'; return; }
   grid.innerHTML = list.map(p => `
     <div class="pair-card">
-      ${p.media?.type === 'video' 
+      ${p.media?.type === 'video'
         ? `<video src="${p.media?.url}" controls preload="metadata"></video>`
         : `<img src="${p.media?.url}" loading="lazy">`}
       <div class="pair-info">
@@ -497,9 +766,11 @@ function renderPairs(list) {
           <span class="pair-status ${p.is_extracted ? 'status-used' : 'status-free'}">
             ${p.is_extracted ? '✅ 已提取' : '🟢 可提取'}
           </span>
+          ${p.is_extracted && p.extracted_at ? `<span style="font-size:10px;color:#aaa;margin-left:6px">${new Date(p.extracted_at).toLocaleString()}</span>` : ''}
         </div>
-        <div style="margin-top:6px;display:flex;gap:4px">
+        <div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap">
           <button class="btn btn-danger btn-sm" onclick="deletePair(${p.id})">🗑 解除配对</button>
+          ${p.is_extracted ? `<button class="btn btn-outline btn-sm" onclick="resetOneExtracted(${p.id})">♻️ 复原提取</button>` : ''}
         </div>
       </div>
     </div>`).join('');
@@ -510,10 +781,10 @@ async function loadUnpaired() {
   const { data: pairedMedia } = await supabaseClient.from('pairs').select('media_id');
   const pairedIds = new Set((pairedMedia||[]).map(p => p.media_id));
   const unpaired = (allMedia||[]).filter(m => !pairedIds.has(m.id));
-  document.getElementById('unpairedVideos').innerHTML = unpaired.filter(m => m.type === 'video').map(m => 
-    `<div class="unpaired-item"><span>🎬 ${m.name}</span>${platformTag(m.platform)}</div>`).join('') || '<div class="empty" style="padding:12px">无</div>';
-  document.getElementById('unpairedImages').innerHTML = unpaired.filter(m => m.type === 'image').map(m => 
-    `<div class="unpaired-item"><span>🖼 ${m.name}</span>${platformTag(m.platform)}</div>`).join('') || '<div class="empty" style="padding:12px">无</div>';
+  document.getElementById('unpairedVideos').innerHTML = unpaired.filter(m => m.type === 'video').map(m =>
+    `<div class="unpaired-item"><span>🎬 ${m.name}</span>${platformTag(m.platform)}<button class="btn btn-danger btn-sm" onclick="deleteMedia(${m.id})">🗑</button></div>`).join('') || '<div class="empty" style="padding:12px">无</div>';
+  document.getElementById('unpairedImages').innerHTML = unpaired.filter(m => m.type === 'image').map(m =>
+    `<div class="unpaired-item"><span>🖼 ${m.name}</span>${platformTag(m.platform)}<button class="btn btn-danger btn-sm" onclick="deleteMedia(${m.id})">🗑</button></div>`).join('') || '<div class="empty" style="padding:12px">无</div>';
 }
 
 async function deletePair(id) {
@@ -522,6 +793,27 @@ async function deletePair(id) {
     await supabaseClient.from('pairs').delete().eq('id', id);
     showToast('已解除'); loadPairs(); loadStats();
   } catch(e) { showToast('失败: ' + e.message); }
+}
+
+// 删除单个媒体（同时删除Storage文件）
+async function deleteMedia(mediaId) {
+  if (!confirm('确定删除此媒体文件？\n（Storage中的文件也会一并删除）')) return;
+  try {
+    // 先获取URL用于删除Storage
+    const { data: media } = await supabaseClient.from('media_assets').select('url').eq('id', mediaId).single();
+    if (media?.url) {
+      // 从URL提取Storage路径
+      const urlObj = new URL(media.url);
+      const pathParts = urlObj.pathname.split('/storage/v1/object/public/media/');
+      if (pathParts.length > 1) {
+        const filePath = decodeURIComponent(pathParts[1]);
+        await supabaseClient.storage.from('media').remove([filePath]);
+      }
+    }
+    await supabaseClient.from('media_assets').delete().eq('id', mediaId);
+    showToast('✅ 已删除');
+    loadPairs(); loadStats();
+  } catch(e) { showToast('删除失败: ' + e.message); }
 }
 
 // 分享
@@ -574,6 +866,27 @@ async function deleteShare(shareId) {
   showToast('已删除'); loadShares();
 }
 
+// 批量删除话术（按平台/类型）
+async function batchDeleteScripts() {
+  if (!supabaseClient) return;
+  const platform = document.getElementById('batchDelScriptPlatform')?.value || '';
+  const type = document.getElementById('batchDelScriptType')?.value || '';
+  let query = supabaseClient.from('scripts').delete();
+  if (platform) query = query.eq('platform', platform);
+  if (type) query = query.eq('type', type);
+  if (!platform && !type) {
+    if (!confirm('⚠️ 未选择筛选条件，将删除全部话术！确定吗？')) return;
+  } else {
+    if (!confirm(`确定删除 ${platform || '全部平台'} 的 ${type || '全部类型'}？`)) return;
+  }
+  try {
+    const { data, error } = await query.select();
+    if (error) throw error;
+    showToast(`✅ 已删除 ${data ? data.length : 0} 条`);
+    loadStats();
+  } catch(e) { showToast('删除失败: ' + e.message); }
+}
+
 // 统计
 async function loadStats() {
   if (!supabaseClient) return;
@@ -587,6 +900,15 @@ async function loadStats() {
     document.getElementById('statMedia').textContent = media ? media.length : 0;
     document.getElementById('statPairs').textContent = pairs ? pairs.length : 0;
     document.getElementById('statExtracted').textContent = pairs ? pairs.filter(p => p.is_extracted).length : 0;
+    
+    // 同步更新提取数据统计
+    if (document.getElementById('extractStats')) {
+      const [allMediaRes, allScriptRes] = await Promise.all([
+        supabaseClient.from('media_assets').select('*'),
+        supabaseClient.from('scripts').select('*')
+      ]);
+      renderExtractStats(pairs || [], allMediaRes.data || [], allScriptRes.data || []);
+    }
   } catch(e) {}
 }
 
