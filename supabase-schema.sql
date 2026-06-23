@@ -74,3 +74,29 @@ CREATE INDEX IF NOT EXISTS idx_pairs_extracted ON pairs(is_extracted);
 --  Storage Bucket
 --  在 Supabase Dashboard → Storage 中创建名为 "media" 的 Public Bucket
 -- ================================================================
+
+-- ================================================================
+--  Storage RLS 策略（关键！否则上传/读取会报 403）
+--  对 storage.objects 表配置公开策略，仅作用于 media 桶
+-- ================================================================
+
+-- 允许所有人读取 media 桶中的文件（公开下载）
+CREATE POLICY "public_read_media"
+ON storage.objects FOR SELECT
+USING ( bucket_id = 'media' );
+
+-- 允许所有人上传到 media 桶（管理员前端直接上传）
+CREATE POLICY "public_insert_media"
+ON storage.objects FOR INSERT
+WITH CHECK ( bucket_id = 'media' );
+
+-- 允许所有人更新 media 桶中的文件（如需覆盖）
+CREATE POLICY "public_update_media"
+ON storage.objects FOR UPDATE
+USING ( bucket_id = 'media' )
+WITH CHECK ( bucket_id = 'media' );
+
+-- 允许所有人删除 media 桶中的文件（如需清理）
+CREATE POLICY "public_delete_media"
+ON storage.objects FOR DELETE
+USING ( bucket_id = 'media' );

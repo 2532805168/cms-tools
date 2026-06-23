@@ -612,12 +612,21 @@ if (uploadZone) {
   };
 }
 
+function togglePlatformItem(el, evt) {
+  // 阻止冒泡和默认行为，避免 label/input 双触发
+  if (evt) { evt.preventDefault(); evt.stopPropagation(); }
+  const nowChecked = !el.classList.contains('checked');
+  el.classList.toggle('checked', nowChecked);
+  const input = el.querySelector('input');
+  if (input) input.checked = nowChecked;
+}
+
 function initPlatforms() {
   const genDiv = document.getElementById('genPlatforms');
-  genDiv.innerHTML = PLATFORMS.map(p => `
-    <label class="checkbox-item" onclick="this.classList.toggle('checked');this.querySelector('input').checked=this.classList.contains('checked')">
+  genDiv.innerHTML = PLATFORMS.map((p, i) => `
+    <div class="checkbox-item" data-platform="${p}" onclick="togglePlatformItem(this, event)">
       <input type="checkbox" class="gen-plat-cb" value="${p}" style="display:none"> ${p}
-    </label>`).join('');
+    </div>`).join('');
   const mediaSel = document.getElementById('mediaPlatform');
   if (mediaSel) mediaSel.innerHTML = PLATFORMS.map(p => `<option value="${p}">${p}</option>`).join('');
 }
