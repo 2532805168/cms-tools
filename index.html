@@ -261,8 +261,19 @@ const DEFAULT_SUPABASE_KEY = 'sb_publishable_16bSgqs3xqmN7FKlyKdmDw_eZzqmiF4';
 let supabaseClient = null;
 const PLATFORMS = ['抖音','快手','小红书','微信','微博','B站'];
 
+// 清理 Supabase URL：自动去掉 /rest/v1 等多余后缀
+function cleanSupabaseUrl(raw) {
+  if (!raw) return raw;
+  let u = raw.trim().replace(/\/+$/, '');
+  // 去掉 /rest/v1 或 /rest/v1/ 后缀（SDK 会自动拼接）
+  if (u.endsWith('/rest/v1')) u = u.slice(0, -8);
+  else if (u.endsWith('/rest')) u = u.slice(0, -5);
+  return u.replace(/\/+$/, '');
+}
+
 function loadConfig() {
-  const url = localStorage.getItem('supabase_url') || DEFAULT_SUPABASE_URL;
+  const rawUrl = localStorage.getItem('supabase_url') || DEFAULT_SUPABASE_URL;
+  const url = cleanSupabaseUrl(rawUrl);
   const key = localStorage.getItem('supabase_key') || DEFAULT_SUPABASE_KEY;
   const siteUrl = localStorage.getItem('site_url') || '';
   if (document.getElementById('supabaseUrl')) document.getElementById('supabaseUrl').value = url;
@@ -273,7 +284,7 @@ function loadConfig() {
 }
 
 function saveConfig() {
-  const url = document.getElementById('supabaseUrl').value.trim();
+  const url = cleanSupabaseUrl(document.getElementById('supabaseUrl').value);
   const key = document.getElementById('supabaseKey').value.trim();
   const siteUrl = document.getElementById('siteUrl').value.trim();
   if (!url || !key) { showToast('请填写完整'); return; }

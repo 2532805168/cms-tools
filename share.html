@@ -112,8 +112,16 @@ let currentTypeFilter = '';
 let currentStatusFilter = '';
 let pendingExtractId = null;
 
+function cleanSupabaseUrl(raw) {
+  if (!raw) return raw;
+  let u = raw.trim().replace(/\/+$/, '');
+  if (u.endsWith('/rest/v1')) u = u.slice(0, -8);
+  else if (u.endsWith('/rest')) u = u.slice(0, -5);
+  return u.replace(/\/+$/, '');
+}
+
 function initSupabase() {
-  const url = localStorage.getItem('supabase_url') || DEFAULT_SUPABASE_URL;
+  const url = cleanSupabaseUrl(localStorage.getItem('supabase_url') || DEFAULT_SUPABASE_URL);
   const key = localStorage.getItem('supabase_key') || DEFAULT_SUPABASE_KEY;
   if (url && key) { supabaseClient = supabase.createClient(url, key); return true; }
   return false;
