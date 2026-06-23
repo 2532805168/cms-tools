@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>话术素材库</title>
+<!-- 同步加载 Supabase SDK，确保执行前已加载完 -->
+<script src="./supabase.js"></script>
 <script>
 // 全局错误捕获，防止页面闪退
 window.addEventListener('error', function(e) {
@@ -13,24 +15,6 @@ window.addEventListener('unhandledrejection', function(e) {
   console.error('未处理的 Promise 拒绝:', e.reason);
   e.preventDefault();
 });
-
-// 动态加载 Supabase CDN，带加载检测
-(function loadSupabase() {
-  if (typeof supabase !== 'undefined') { console.log('✅ Supabase SDK already loaded'); return; }
-  const s = document.createElement('script');
-  s.src = './supabase.js';
-  s.onload = function() {
-    console.log('✅ Supabase SDK loaded');
-    // 如果页面还在加载状态，自动重试
-    if (document.getElementById('loading') && document.getElementById('loading').style.display !== 'none') {
-      setTimeout(() => { if (typeof loadData === 'function') loadData(); }, 500);
-    }
-  };
-  s.onerror = function() {
-    document.body.innerHTML = '<div style="padding:40px;text-align:center;color:#ff4d4f;font-size:16px">❌ 无法加载 Supabase SDK<br><br>请检查网络连接后<button onclick="location.reload()" style="padding:8px 20px;border:none;border-radius:6px;background:#667eea;color:#fff;font-size:14px;cursor:pointer;margin-top:12px">刷新页面</button></div>';
-  };
-  document.head.appendChild(s);
-})();
 </script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -292,8 +276,8 @@ function renderPlatformPicker() {
       <div class="icon">${pf.icon}</div>
       <div class="name">${pf.name}</div>
       <div class="count">
-        <span style="color:#1890ff;cursor:pointer" onclick="event.stopPropagation();selectPlatformType('${pf.name}','video_copy')">视频文案 ${videoCount}</span><br>
-        <span style="color:#fa8c16;cursor:pointer" onclick="event.stopPropagation();selectPlatformType('${pf.name}','comment')">评论话术 ${commentCount}</span>
+        <span style="color:#1890ff;cursor:pointer" onclick="event.stopPropagation();selectPlatformType('${pf.name}','video_copy')">📝 视频文案 ${videoCount}</span><br>
+        <span style="color:#fa8c16;cursor:pointer" onclick="event.stopPropagation();selectPlatformType('${pf.name}','comment')">🖼 图片+话术 ${commentCount}</span>
       </div>
     </div>`;
   });
@@ -427,7 +411,7 @@ function renderPairs() {
         <div class="actions">
           ${p.is_extracted 
             ? `<button class="btn btn-extracted" disabled>🔒 已被提取</button>`
-            : `<button class="btn btn-extract" onclick="openExtractModal(${p.id})">✅ 立即提取（自动下载+复制）</button>`}
+            : `<button class="btn btn-extract" onclick="openExtractModal(${p.id})">✅ 立即提取（${p.pair_type === 'video_copy' ? '自动复制文案' : '自动下载+复制'}）</button>`}
         </div>
         ${p.is_extracted && p.extracted_at ? `<p style="font-size:11px;color:#aaa;margin-top:8px">提取时间: ${new Date(p.extracted_at).toLocaleString()}</p>` : ''}
       </div>
@@ -480,33 +464,37 @@ async function confirmExtract() {
     return;
   }
 
-  // 自动下载媒体 + 复制文案
+  // 自动处理：图片配话术→下载图片+复制话术；视频配文案→只复制文案
   const matchedPair = allPairs.find(p => p.id === currentPairId);
   if (matchedPair) {
-    // 下载媒体（视频/图片）
-    if (matchedPair.media && matchedPair.media.url) {
+    let downloaded = false;
+    let copied = false;
+
+    // 图片配话术：下载图片到手机（视频配文案不下载视频，避免手机内存爆炸）
+    if (matchedPair.pair_type === 'comment' && matchedPair.media && matchedPair.media.url) {
       try {
         const response = await fetch(matchedPair.media.url);
         const blob = await response.blob();
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = matchedPair.media.name || (matchedPair.media.type === 'video' ? 'video.mp4' : 'image.jpg');
+        a.download = matchedPair.media.name || 'image.jpg';
         a.style.display = 'none';
         document.body.appendChild(a);
         a.click();
         setTimeout(() => {
-          document.body.removeChild(a);
+          try { document.body.removeChild(a); } catch(e) {}
           URL.revokeObjectURL(url);
         }, 1000);
+        downloaded = true;
       } catch(e) {
         try { window.open(matchedPair.media.url, '_blank'); } catch(e2) {}
-        console.warn('下载失败:', e);
+        console.warn('图片下载失败:', e);
       }
     }
-    // 复制文案
+
+    // 复制文案（视频文案 和 评论话术 都复制）
     if (matchedPair.script && matchedPair.script.content) {
-      let copied = false;
       try {
         await navigator.clipboard.writeText(matchedPair.script.content);
         copied = true;
@@ -519,16 +507,22 @@ async function confirmExtract() {
           document.body.appendChild(ta);
           ta.focus(); ta.select();
           if (document.execCommand('copy')) copied = true;
-          document.body.removeChild(ta);
+          try { document.body.removeChild(ta); } catch(e3) {}
         } catch(e2) {}
       }
-      if (copied) {
-        showToast('✅ 提取成功！视频/图片已下载，文案已复制');
-      } else {
-        showManualCopy(matchedPair.script.content);
-      }
+    }
+
+    // 根据结果给提示
+    if (copied && downloaded) {
+      showToast('✅ 提取成功！图片已下载，话术已复制');
+    } else if (copied && !downloaded) {
+      showToast('✅ 提取成功！视频文案已复制到剪贴板');
+    } else if (!copied && downloaded) {
+      showToast('✅ 图片已下载，请手动复制话术');
+      if (matchedPair.script && matchedPair.script.content) showManualCopy(matchedPair.script.content);
     } else {
-      showToast('✅ 提取成功！媒体已下载');
+      showToast('✅ 提取成功');
+      if (matchedPair.script && matchedPair.script.content) showManualCopy(matchedPair.script.content);
     }
   } else {
     showToast('✅ 提取成功');
@@ -563,7 +557,14 @@ function showToast(msg) {
   setTimeout(() => t.classList.remove('show'), 3000);
 }
 
-loadData();
+// 安全加载，出错时给出提示而不闪退
+try {
+  loadData();
+} catch(e) {
+  console.error('初始化加载失败:', e);
+  const loadingEl = document.getElementById('loading');
+  if (loadingEl) loadingEl.innerHTML = '<p>❌ 加载失败: ' + e.message + '</p><button onclick="location.reload()" style="margin-top:12px;padding:8px 20px;border:none;border-radius:6px;background:#667eea;color:#fff;cursor:pointer">刷新页面</button>';
+}
 
 let loadTimer = null;
 function scheduleLoadData() {
