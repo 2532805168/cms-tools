@@ -1,5 +1,5 @@
 -- ================================================================
---  CMS 话术管理系统 - Supabase 数据库 Schema
+--  CMS 话术管理系统 - Supabase 数据库 Schema v2
 --  在 Supabase SQL Editor 中执行此文件
 -- ================================================================
 
@@ -10,21 +10,10 @@ CREATE TABLE IF NOT EXISTS scripts (
   type        text not null default '评论话术',
   title       text not null,
   content     text not null,
-  media       jsonb default '[]'::jsonb,
-  extract_count integer default 0,
-  generated   boolean default false,
   created_at  timestamptz default now()
 );
 
--- 2. 提取记录表
-CREATE TABLE IF NOT EXISTS extractions (
-  id          bigint generated always as identity primary key,
-  uid         text not null,
-  script_id   bigint not null,
-  extracted_at timestamptz default now()
-);
-
--- 3. 媒体资产表
+-- 2. 媒体资产表
 CREATE TABLE IF NOT EXISTS media_assets (
   id            bigint generated always as identity primary key,
   url           text not null,
@@ -32,51 +21,56 @@ CREATE TABLE IF NOT EXISTS media_assets (
   type          text not null default 'image',
   platform      text not null default '通用',
   size          bigint default 0,
-  paired_script_id      bigint,
-  paired_script_title   text,
-  paired_script_content text,
-  paired_script_type    text,
   created_at    timestamptz default now()
 );
 
--- 4. 分享表
+-- 3. 配对表（核心：视频↔视频文案，图片↔评论话术，1对1）
+CREATE TABLE IF NOT EXISTS pairs (
+  id            bigint generated always as identity primary key,
+  media_id      bigint not null,
+  script_id     bigint not null,
+  pair_type     text not null,
+  is_extracted  boolean default false,
+  extracted_by  text,
+  extracted_at  timestamptz,
+  created_at    timestamptz default now(),
+  UNIQUE(media_id),
+  UNIQUE(script_id)
+);
+
+-- 4. 分享配置表
 CREATE TABLE IF NOT EXISTS shares (
   id          bigint generated always as identity primary key,
   share_id    text not null unique,
-  title       text not null default '未命名分享',
+  title       text not null default '话术素材库',
   description text default '',
-  scripts     jsonb default '[]'::jsonb,
-  media_assets jsonb default '[]'::jsonb,
   view_count  integer default 0,
   created_at  timestamptz default now()
 );
 
 -- ================================================================
---  Row Level Security (RLS) - 公开读写（适合分享场景）
+--  Row Level Security (RLS) - 公开读写
 -- ================================================================
-
 ALTER TABLE scripts ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "public_all_scripts" ON scripts FOR ALL USING (true) WITH CHECK (true);
 
-ALTER TABLE extractions ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "public_all_extractions" ON extractions FOR ALL USING (true) WITH CHECK (true);
-
 ALTER TABLE media_assets ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "public_all_media" ON media_assets FOR ALL USING (true) WITH CHECK (true);
+
+ALTER TABLE pairs ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "public_all_pairs" ON pairs FOR ALL USING (true) WITH CHECK (true);
 
 ALTER TABLE shares ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "public_all_shares" ON shares FOR ALL USING (true) WITH CHECK (true);
 
 -- ================================================================
---  索引（提升查询性能）
+--  索引
 -- ================================================================
 CREATE INDEX IF NOT EXISTS idx_scripts_platform ON scripts(platform);
 CREATE INDEX IF NOT EXISTS idx_scripts_type ON scripts(type);
-CREATE INDEX IF NOT EXISTS idx_extractions_uid ON extractions(uid);
-CREATE INDEX IF NOT EXISTS idx_shares_share_id ON shares(share_id);
+CREATE INDEX IF NOT EXISTS idx_pairs_extracted ON pairs(is_extracted);
 
 -- ================================================================
---  Storage Bucket（用于存储视频/图片）
---  在 Supabase Dashboard → Storage 中手动创建名为 "media" 的 bucket
---  并设置为 Public
+--  Storage Bucket
+--  在 Supabase Dashboard → Storage 中创建名为 "media" 的 Public Bucket
 -- ================================================================
