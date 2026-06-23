@@ -4,7 +4,34 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>话术素材库</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// 全局错误捕获，防止页面闪退
+window.addEventListener('error', function(e) {
+  console.error('全局错误:', e.error || e.message);
+});
+window.addEventListener('unhandledrejection', function(e) {
+  console.error('未处理的 Promise 拒绝:', e.reason);
+  e.preventDefault();
+});
+
+// 动态加载 Supabase CDN，带加载检测
+(function loadSupabase() {
+  if (typeof supabase !== 'undefined') { console.log('✅ Supabase SDK already loaded'); return; }
+  const s = document.createElement('script');
+  s.src = './supabase.js';
+  s.onload = function() {
+    console.log('✅ Supabase SDK loaded');
+    // 如果页面还在加载状态，自动重试
+    if (document.getElementById('loading') && document.getElementById('loading').style.display !== 'none') {
+      setTimeout(() => { if (typeof loadData === 'function') loadData(); }, 500);
+    }
+  };
+  s.onerror = function() {
+    document.body.innerHTML = '<div style="padding:40px;text-align:center;color:#ff4d4f;font-size:16px">❌ 无法加载 Supabase SDK<br><br>请检查网络连接后<button onclick="location.reload()" style="padding:8px 20px;border:none;border-radius:6px;background:#667eea;color:#fff;font-size:14px;cursor:pointer;margin-top:12px">刷新页面</button></div>';
+  };
+  document.head.appendChild(s);
+})();
+</script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f6fa;color:#333;min-height:100vh}
@@ -162,6 +189,12 @@ function cleanSupabaseUrl(raw) {
 }
 
 function initSupabase() {
+  if (typeof supabase === 'undefined') {
+    const msg = '⚠️ Supabase SDK 正在加载，请稍后刷新页面';
+    const el = document.getElementById('loading');
+    if (el) el.innerHTML = '<p>' + msg + '</p>';
+    return false;
+  }
   const url = cleanSupabaseUrl(localStorage.getItem('supabase_url') || DEFAULT_SUPABASE_URL);
   const key = localStorage.getItem('supabase_key') || DEFAULT_SUPABASE_KEY;
   if (url && key) { supabaseClient = supabase.createClient(url, key); return true; }
@@ -402,72 +435,97 @@ function renderPairs() {
   }).join('');
 }
 
-function openExtractModal(pairId) {
-  pendingExtractId = pairId;
-  document.getElementById('extractModal').classList.add('show');
+function openExtractModal(pairIdValue) {
+  pendingExtractId = pairIdValue;
+  const modal = document.getElementById('extractModal');
+  if (modal) modal.classList.add('show');
 }
 
 function closeExtractModal() {
   pendingExtractId = null;
-  document.getElementById('extractModal').classList.remove('show');
+  const modal = document.getElementById('extractModal');
+  if (modal) modal.classList.remove('show');
 }
 
 async function confirmExtract() {
   if (!pendingExtractId) return;
-  const pairId = pendingExtractId;
+  const currentPairId = pendingExtractId;
   closeExtractModal();
-  
+
   // 先检查是否已被提取（并发保护）
-  const { data: current } = await supabaseClient.from('pairs').select('is_extracted').eq('id', pairId).single();
+  const { data: current } = await supabaseClient.from('pairs').select('is_extracted').eq('id', currentPairId).single();
   if (current && current.is_extracted) {
     showToast('❌ 该内容刚被其他人提取了');
     await loadData();
     return;
   }
-  
+
   const extractedBy = 'user_' + Math.random().toString(36).slice(2, 10);
-  
+
   const { error } = await supabaseClient.from('pairs').update({
     is_extracted: true,
     extracted_by: extractedBy,
     extracted_at: new Date().toISOString()
-  }).eq('id', pairId).eq('is_extracted', false);
-  
+  }).eq('id', currentPairId).eq('is_extracted', false);
+
   if (error) {
     showToast('❌ 提取失败: ' + error.message);
     return;
   }
-  
-  const { data: updated } = await supabaseClient.from('pairs').select('is_extracted').eq('id', pairId).single();
+
+  const { data: updated } = await supabaseClient.from('pairs').select('is_extracted').eq('id', currentPairId).single();
   if (!updated || !updated.is_extracted) {
     showToast('❌ 该内容刚被其他人提取了');
     await loadData();
     return;
   }
-  
+
   // 自动下载媒体 + 复制文案
-  const pair = allPairs.find(p => p.id === pairId);
-  if (pair) {
+  const matchedPair = allPairs.find(p => p.id === currentPairId);
+  if (matchedPair) {
     // 下载媒体（视频/图片）
-    if (pair.media?.url) {
+    if (matchedPair.media && matchedPair.media.url) {
       try {
+        const response = await fetch(matchedPair.media.url);
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
-        a.href = pair.media.url;
-        a.download = pair.media.name || (pair.media.type === 'video' ? 'video.mp4' : 'image.jpg');
-        a.target = '_blank';
+        a.href = url;
+        a.download = matchedPair.media.name || (matchedPair.media.type === 'video' ? 'video.mp4' : 'image.jpg');
+        a.style.display = 'none';
         document.body.appendChild(a);
         a.click();
-        a.remove();
-      } catch(e) { console.warn('下载失败:', e); }
+        setTimeout(() => {
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }, 1000);
+      } catch(e) {
+        try { window.open(matchedPair.media.url, '_blank'); } catch(e2) {}
+        console.warn('下载失败:', e);
+      }
     }
     // 复制文案
-    if (pair.script?.content) {
+    if (matchedPair.script && matchedPair.script.content) {
+      let copied = false;
       try {
-        await navigator.clipboard.writeText(pair.script.content);
+        await navigator.clipboard.writeText(matchedPair.script.content);
+        copied = true;
+      } catch(e1) {
+        try {
+          const ta = document.createElement('textarea');
+          ta.value = matchedPair.script.content;
+          ta.style.position = 'fixed';
+          ta.style.opacity = '0';
+          document.body.appendChild(ta);
+          ta.focus(); ta.select();
+          if (document.execCommand('copy')) copied = true;
+          document.body.removeChild(ta);
+        } catch(e2) {}
+      }
+      if (copied) {
         showToast('✅ 提取成功！视频/图片已下载，文案已复制');
-      } catch(e) {
-        // 剪贴板失败时显示文案让用户手动复制
-        showManualCopy(pair.script.content);
+      } else {
+        showManualCopy(matchedPair.script.content);
       }
     } else {
       showToast('✅ 提取成功！媒体已下载');
@@ -475,7 +533,7 @@ async function confirmExtract() {
   } else {
     showToast('✅ 提取成功');
   }
-  
+
   await loadData();
 }
 
@@ -507,9 +565,19 @@ function showToast(msg) {
 
 loadData();
 
-setInterval(() => {
-  if (document.getElementById('mainContent').style.display === 'block') loadData();
-}, 30000);
+let loadTimer = null;
+function scheduleLoadData() {
+  if (loadTimer) clearTimeout(loadTimer);
+  loadTimer = setTimeout(async () => {
+    try {
+      if (document.getElementById('mainContent')?.style.display === 'block') {
+        await loadData();
+      }
+    } catch(e) { console.error('loadData error:', e); }
+    scheduleLoadData();
+  }, 30000);
+}
+scheduleLoadData();
 </script>
 </body>
 </html>
