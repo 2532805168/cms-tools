@@ -603,12 +603,33 @@ function createPairCard(p) {
       actions.appendChild(time);
     }
   } else {
-    const extBtn = document.createElement('button');
-    extBtn.className = 'btn btn-extract';
-    const btnLabel = p.pair_type === 'video_copy' ? '✅ 立即提取（复制文案）' : '✅ 立即提取（下载图片+复制话术）';
-    extBtn.textContent = btnLabel;
-    extBtn.onclick = function() { openExtractModal(p.id); };
-    actions.appendChild(extBtn);
+    if (p.pair_type === 'video_copy') {
+      // 视频文案：不提取、不锁定，直接复制文案
+      const copyBtn = document.createElement('button');
+      copyBtn.className = 'btn btn-copy';
+      copyBtn.style.cssText = 'flex:1;font-weight:600';
+      copyBtn.textContent = '📋 复制文案';
+      copyBtn.onclick = function() {
+        const text = p.script?.content || '';
+        if (!text.trim()) { showToast('⚠️ 该视频暂无文案内容'); return; }
+        copyText(text).then(function(ok) {
+          if (ok) {
+            showToast('✅ 文案已复制到剪贴板');
+          } else {
+            showToast('📋 请长按下方文案复制');
+            showManualCopy(text);
+          }
+        });
+      };
+      actions.appendChild(copyBtn);
+    } else {
+      // 图片+话术：走提取流程（下载图片 + 复制话术 + 锁定）
+      const extBtn = document.createElement('button');
+      extBtn.className = 'btn btn-extract';
+      extBtn.textContent = '✅ 立即提取（下载图片+复制话术）';
+      extBtn.onclick = function() { openExtractModal(p.id); };
+      actions.appendChild(extBtn);
+    }
   }
 
   info.appendChild(actions);
